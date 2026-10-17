@@ -20,7 +20,7 @@
     G("is not", "It ＿ cold today.", "isn't", ["don't", "doesn't", "aren't"], "cold は形容詞なので be動詞の否定文", "今日は寒くありません。"),
     G("They are", "Ken and Mai ＿ good friends.", "are", ["is", "am", "be"], "Ken and Mai は2人＝複数なので are"),
     G("Is this～?", "＿ this your umbrella? ― No, it isn't.", "Is", ["Are", "Does", "Do"], "this が主語の be動詞の疑問文"),
-    G("a / an", "I have ＿ apple.", "an", ["a", "the", "some"], "母音（ア・イ・ウ・エ・オの音）で始まる語の前は an"),
+    G("a / an", "I have ＿ apple.", "an", ["a", "two", "many"], "母音（ア・イ・ウ・エ・オの音）で始まる語の前は an"),
   ], "I am ／ You are ／ Do you 〜? の きほん");
 
   ch("gA2", 1, "三単現の s", "🐝", [
@@ -95,7 +95,7 @@
     G("ate", "I ＿ curry for lunch.", "ate", ["eated", "eat", "eaten"], "eat の過去形は ate"),
     G("was ～ing", "I ＿ taking a bath when he called me.", "was", ["am", "did", "were"], "過去進行形は was / were＋〜ing"),
     G("原形 after did", "Did she ＿ the letter?", "write", ["wrote", "writes", "written"], "Did の後ろは原形"),
-    G("ago", "My grandfather visited us three days ＿.", "ago", ["before", "last", "since"], "「〜前に」は 〜 ago"),
+    G("ago", "My grandfather visited us three days ＿.", "ago", ["after", "last", "since"], "「〜前に」は 〜 ago"),
   ], "〜した（規則動詞と 不規則動詞）");
 
   ch("gA7", 1, "can と 命令文", "🦸", [
@@ -107,7 +107,7 @@
     G("Don't", "＿ run in the hallway.", "Don't", ["Not", "No", "Aren't"], "「〜するな」は Don't＋原形"),
     G("Let's", "＿ go to the park. ― Yes, let's.", "Let's", ["Shall", "Let", "We"], "「〜しよう」は Let's＋原形"),
     G("Please", "＿ open the window.", "Please", ["Can", "Let's", "Do"], "please で始めるとていねいな命令文"),
-    G("Can you（依頼）", "＿ you help me with my homework? ― OK.", "Can", ["Do", "Shall", "Must"], "Can you 〜? は「〜してくれますか」"),
+    G("Can you（依頼）", "＿ you help me with my homework? ― OK.", "Can", ["Do", "Shall", "Are"], "Can you 〜? は「〜してくれますか」"),
     G("could（過去）", "I ＿ ride a bike when I was five.", "could", ["can", "can't", "will"], "can の過去形は could"),
     G("Don't be", "Don't ＿ afraid.", "be", ["are", "is", "being"], "be動詞の否定の命令文は Don't be 〜"),
     G("Look", "＿ at this picture.", "Look", ["See", "Watch", "Looks"], "「〜を見なさい」は Look at 〜"),
@@ -151,7 +151,7 @@
     G("has to", "She ＿ finish her homework today.", "has to", ["have to", "must to", "has"], "主語が3人称単数なら has to"),
     G("had to", "I ＿ wait for an hour yesterday.", "had to", ["must", "have to", "has to"], "must の過去の意味は had to"),
     G("may（許可）", "＿ I come in? ― Yes, please.", "May", ["Must", "Shall", "Will"], "May I 〜?「〜してもよろしいですか」"),
-    G("may（推量）", "He ＿ be at home now, but I'm not sure.", "may", ["must", "should", "has to"], "may「〜かもしれない」"),
+    G("may（推量）", "He ＿ be at home now, but I'm not sure.", "may", ["must", "had to", "is"], "may「〜かもしれない」"),
     G("should", "You look tired. You ＿ go to bed early.", "should", ["must not", "may not", "don't have to"], "should「〜したほうがよい」"),
     G("must（推量）", "She has been running for an hour. She ＿ be tired.", "must", ["can't", "may not", "shouldn't"], "must「〜にちがいない」"),
     G("Do I have to ～?", "＿ I have to clean the room now? ― No, you don't have to.", "Do", ["Must", "Am", "Have"], "have to の疑問文は Do＋主語＋have to"),
@@ -200,7 +200,7 @@
     G("or", "Which do you want, tea ＿ coffee?", "or", ["and", "but", "so"], "A or B「AかB」"),
     G("命令文, and", "Hurry up, ＿ you'll catch the bus.", "and", ["or", "but", "so"], "命令文, and 〜「…しなさい、そうすれば〜」"),
     G("命令文, or", "Hurry up, ＿ you'll miss the bus.", "or", ["and", "but", "so"], "命令文, or 〜「…しなさい、さもないと〜」"),
-    G("before", "Wash your hands ＿ you eat.", "before", ["after", "until", "because"], "before「〜する前に」"),
+    G("before", "Wash your hands ＿ you eat.", "before", ["since", "until", "because"], "before「〜する前に」"),
     G("until", "Let's wait here ＿ the rain stops.", "until", ["since", "if", "though"], "until「〜するまで（ずっと）」"),
   ], "when・if・because・that");
 
@@ -210,8 +210,8 @@
     G("more", "This book is ＿ interesting than that one.", "more", ["most", "very", "much more than"], "長い語は more＋原級"),
     G("most", "She is the ＿ popular singer in Japan.", "most", ["more", "much", "very"], "長い語の最上級は most＋原級"),
     G("as ～ as", "My bag is as ＿ as yours.", "big", ["bigger", "biggest", "more big"], "as＋原級＋as「…と同じくらい〜」"),
-    G("better", "I like summer ＿ than winter.", "better", ["more", "well", "best"], "like A better than B「BよりAが好き」"),
-    G("best", "I like spring the ＿ of all the seasons.", "best", ["better", "most", "good"], "like 〜 the best「〜がいちばん好き」"),
+    G("better", "I like summer ＿ than winter.", "better", ["much", "well", "best"], "like A better than B「BよりAが好き」"),
+    G("best", "I like spring the ＿ of all the seasons.", "best", ["better", "much", "good"], "like 〜 the best「〜がいちばん好き」"),
     G("of / in", "He is the fastest runner ＿ our class.", "in", ["of", "than", "at"], "範囲・場所は in、複数の仲間は of"),
     G("of all", "This is the most difficult ＿ all the questions.", "of", ["in", "than", "among them"], "of all 〜「すべての〜の中で」"),
     G("not as ～ as", "This test was not as ＿ as the last one.", "easy", ["easier", "easiest", "more easy"], "not as 〜 as …「…ほど〜ではない」"),
@@ -227,11 +227,11 @@
     G("written", "The letter was ＿ in English.", "written", ["wrote", "writing", "write"], "write の過去分詞は written"),
     G("Is ～ used?", "＿ this room used on Sundays?", "Is", ["Does", "Do", "Has"], "受け身の疑問文は be動詞を前に"),
     G("was not", "The window ＿ broken by Ken. It was broken by Tom.", "was not", ["did not", "has not", "were not"], "受け身の否定文は be動詞＋not"),
-    G("be known to", "His name is known ＿ everyone in the town.", "to", ["by", "for", "as"], "be known to 〜「〜に知られている」"),
-    G("be made of", "This desk is made ＿ wood.", "of", ["from", "by", "in"], "見て材料がわかるときは be made of"),
+    G("be known to", "His name is known ＿ everyone in the town.", "to", ["at", "for", "as"], "be known to 〜「〜に知られている」"),
+    G("be made of", "This desk is made ＿ wood.", "of", ["by", "at", "for"], "見て材料がわかるときは be made of"),
     G("be made from", "Cheese is made ＿ milk.", "from", ["of", "by", "into"], "原料が変化するときは be made from"),
     G("will be＋過去分詞", "The new station will ＿ next year.", "be opened", ["open", "opened", "be opening"], "未来の受け身は will be＋過去分詞"),
-    G("be covered with", "The mountain is covered ＿ snow.", "with", ["by", "of", "at"], "be covered with 〜「〜でおおわれている」"),
+    G("be covered with", "The mountain is covered ＿ snow.", "with", ["for", "of", "at"], "be covered with 〜「〜でおおわれている」"),
   ], "〜される・〜された");
 
   ch("gB8", 2, "いろいろな 文型", "🧱", [
@@ -324,7 +324,7 @@
     G("the first ～ that", "He was the first person ＿ came to the party.", "that", ["what", "whose", "where"], "the first などがつく先行詞は that が好まれる"),
     G("everything that", "Tell me everything ＿ you know.", "that", ["what", "who", "whose"], "everything の後は that"),
     G("people who", "People ＿ live in this city are kind.", "who", ["which", "whose", "where"], "先行詞が人"),
-    G("動物＋which", "I have a cat ＿ has blue eyes.", "which", ["who", "whose", "where"], "動物は物と同じく which / that"),
+    G("動物＋which", "I have a cat ＿ has blue eyes.", "which", ["what", "whose", "where"], "動物は物と同じく which / that"),
     G("that（人＋物）", "Look at the boy and his dog ＿ are running.", "that", ["who", "which", "whose"], "先行詞が人＋動物のときは that"),
   ], "who・which・that・whose");
 
@@ -455,12 +455,12 @@
     G("in（経過）", "The bus will come ＿ ten minutes.", "in", ["after", "within of", "for"], "in＋時間「〜後に（今から）」"),
     G("during", "I fell asleep ＿ the movie.", "during", ["while", "for", "between"], "during＋名詞（while は接続詞）"),
     G("among", "The singer is popular ＿ young people.", "among", ["between", "within", "along"], "3つ以上の間は among"),
-    G("by（手段）", "Can I pay ＿ credit card?", "by", ["with", "on", "in"], "by credit card「クレジットカードで」"),
+    G("by（手段）", "Can I pay ＿ credit card?", "by", ["at", "on", "in"], "by credit card「クレジットカードで」"),
     G("in（言語）", "Please write your name ＿ English.", "in", ["by", "with", "on"], "in English「英語で」"),
     G("with（道具）", "Cut the paper ＿ scissors.", "with", ["by", "in", "on"], "道具は with"),
     G("for（賛成）", "Are you ＿ or against the plan?", "for", ["to", "with", "on"], "for「〜に賛成して」、against「反対して」"),
-    G("across", "We swam ＿ the river.", "across", ["through", "along", "over at"], "across「〜を横切って」"),
-    G("through", "The train went ＿ a long tunnel.", "through", ["across", "along", "into of"], "through「〜を通り抜けて」"),
+    G("across", "We swam ＿ the river.", "across", ["through", "between", "over at"], "across「〜を横切って」"),
+    G("through", "The train went ＿ a long tunnel.", "through", ["across", "over", "into of"], "through「〜を通り抜けて」"),
     G("beyond", "The beauty of the sunset was ＿ description.", "beyond", ["over", "above all", "without"], "beyond description「言葉では表せない」"),
   ], "by と until など");
 

@@ -107,6 +107,9 @@ const AUD = (() => {
   }
   return { play, stop, preload: (files) => files.forEach((f) => load(f).catch(() => {})) };
 })();
+// 同じ つづりで 読みかたが ちがう 語（読み上げ音声が 意味と ちがう 読みに なる おそれが ある）
+const HETERO = new Set(["tear", "close", "live", "wind", "minute", "present", "desert", "use", "lead", "row", "bow", "object", "content", "record"]);
+const canSay = (V) => !HETERO.has(V.w.toLowerCase());
 // 単語の 音声ファイル名（記号は _ に する）
 const wordAudio = (V) => "w/" + V.w.toLowerCase().replace(/[^a-z0-9]+/g, "_");
 // 問題の 🔊 ボタン
@@ -135,7 +138,7 @@ function makeVocabQ(id, kind) {
   const pos = POS_NAME[V.p] || V.p;
   if (!kind) {
     const r = Math.random(), sp = V.w.length <= 12 && !/[^A-Za-z]/.test(V.w) ? 0.2 : 0;
-    const li = audioOK() ? 0.12 : 0;
+    const li = audioOK() && canSay(V) ? 0.12 : 0;
     kind = r < li ? "vlisten" : r < li + sp ? "vspell" : r < li + sp + 0.36 ? "vword" : "vmean";
   }
   const explain = `<span class="en big2">${esc(V.w)}</span>［${pos}］${esc(V.m)}`;
@@ -143,7 +146,7 @@ function makeVocabQ(id, kind) {
     const n = V.w.length, dojo = kind === "vdojo";
     // 文字数の ます（ふつうは 1文字目だけ 見せる。道場は ヒントなし）
     const hint = `<span class="lslots">${V.w.split("").map((c, i) => `<i>${!dojo && i === 0 ? esc(c) : ""}</i>`).join("")}</span>`;
-    return { id, kind: "spell", ans: [V.w, ...V.alt], explain, au: audioOK() && !dojo ? [wordAudio(V)] : null,
+    return { id, kind: "spell", ans: [V.w, ...V.alt], explain, au: audioOK() && !dojo && canSay(V) ? [wordAudio(V)] : null,
       head: `<div class="qlabel">${dojo ? "⌨️ スペル道場：英単語を 入力しよう" : "⌨️ 英単語を 入力しよう"}</div><div class="qword fsm">${esc(V.m)}<small class="pos">［${pos}］</small></div><div class="qhint">${hint}<small>（${n}文字）</small></div>` };
   }
   if (kind === "vword") {

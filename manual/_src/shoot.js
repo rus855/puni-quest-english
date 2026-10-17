@@ -64,7 +64,7 @@ const SHOTS = [
   ["25_chart", `RESTORE(); map(); showChart()`],
   ["26_listen", `RESTORE(); S.bgm=true; QB("lA3-1", "q:lA3-1"); setTimeout(()=>{ const b=document.getElementById("aubtn"); if(b) b.classList.remove("playing"); }, 600)`, 900],
   ["39_listenoff", `RESTORE(); S.bgm=false; openWorld("sci")`],
-  ["28_write", `RESTORE(); S.stClear["v1a-4"]=3; startBattle("kw1-2"); TYPE("libr")`, 900],
+  ["28_write", `RESTORE(); S.stClear["v1a-4"]=3; startBattle("kw1-2"); TYPE(B.q.ans[0].slice(0, 3))`, 900],
   ["29_writemaru", `RESTORE(); S.stClear["v1a-4"]=3; startBattle("kw1-2"); TYPE(B.q.ans[0]); setTimeout(()=>submitSpell(), 300)`, 680],
   ["30_writebtn", `RESTORE(); openWorld("kanji"); setTimeout(()=>document.querySelector(".stage.write").scrollIntoView({block:"center"}), 100)`, 900],
   ["31_maoumap", `RESTORE(); WORLDS.forEach(w=>worldChapters(w.id).slice(0,3).forEach(c=>S.stClear[c.id+"-4"]=3)); map(); setTimeout(()=>window.scrollTo(0, document.body.scrollHeight), 100)`, 900],

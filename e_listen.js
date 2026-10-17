@@ -36,7 +36,7 @@ const LISTEN_RATE = { 1: "-15%", 2: "-12%", 3: "-8%", 4: "-5%", 5: "+0%", 6: "+0
     L("誕生日 March 3", [["M", "My birthday is March third."]], "誕生日は？", "3月3日", ["5月3日", "3月13日", "3月30日"]),
     L("人数 three brothers", [["F", "I have three brothers and one sister."]], "兄弟（男）は 何人？", "3人", ["1人", "4人", "2人"]),
     L("年れい twelve", [["M", "My sister is twelve years old."]], "妹は 何さい？", "12さい", ["20さい", "2さい", "11さい"]),
-    L("電話番号", [["F", "My phone number is 080, 2345, 6789."]], "電話番号は？", "080-2345-6789", ["080-2354-6789", "080-2345-6798", "090-2345-6789"]),
+    L("電話番号", [["F", "My phone number is zero eight zero, two three four five, six seven eight nine."]], "電話番号は？", "080-2345-6789", ["080-2354-6789", "080-2345-6798", "090-2345-6789"]),
     L("月 August", [["M", "We are going to Hokkaido in August."]], "北海道へ 行くのは 何月？", "8月", ["10月", "4月", "6月"]),
     L("時刻 10:45", [["F", "The train leaves at ten forty-five."]], "電車が 出る 時刻は？", "10時45分", ["10時15分", "11時45分", "10時4分"]),
     L("値段 120 yen", [["M", "One apple is one hundred and twenty yen."]], "りんご 1個の 値段は？", "120円", ["112円", "220円", "100円"]),

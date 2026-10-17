@@ -408,8 +408,10 @@ function enemySVG(e) {
       <path d="M72 128 Q100 112 128 128 Q100 140 72 128Z" fill="#2b2140"/><path d="M80 124 l4 8 4 -9Z M112 123 l4 9 4 -8Z" fill="#fff"/>`; break;
   }
   const crown = e.boss && e.shape !== "boss" ? `<path d="M76 46 L72 20 L88 34 L100 14 L112 34 L128 20 L124 46Z" fill="#ffd23f" stroke="#c99a00" stroke-width="2.5" stroke-linejoin="round"/>` : "";
-  // ニガテモンスター（漢字）は、おなかに漢字の札をつける
-  const label = e.label ? `<rect x="78" y="134" width="44" height="38" rx="10" fill="#fff" stroke="${d}" stroke-width="3"/><text x="100" y="163" text-anchor="middle" font-size="30" font-weight="bold" fill="#3b2a55" font-family='${KFONT}'>${esc(e.label)}</text>` : "";
+  // ニガテモンスター（英単語）は、おなかに 単語の 札を つける
+  // 英単語の 札は 長さに あわせて 横に のばし、文字を 小さく する
+  const lw = e.label ? Math.min(120, Math.max(44, e.label.length * 14 + 12)) : 0, lf = e.label && e.label.length > 3 ? 22 : 30;
+  const label = e.label ? `<rect x="${100 - lw / 2}" y="134" width="${lw}" height="38" rx="10" fill="#fff" stroke="${d}" stroke-width="3"/><text x="100" y="${lf === 30 ? 163 : 160}" text-anchor="middle" font-size="${lf}" font-weight="bold" fill="#3b2a55" font-family='"Helvetica Neue", Arial, ${KFONT}'>${esc(e.label)}</text>` : "";
   return `<svg viewBox="0 0 200 200" class="enemy-svg">${body}${crown}${label}</svg>`;
 }
 
@@ -1502,7 +1504,7 @@ function cardDetail(id) {
   if (id.startsWith("v:")) {
     const V = vocabOf(id);
     body = `<div class="fcard ${c.s >= 5 ? "shiny" : ""}"><b class="en vbig">${esc(V.w)}</b><div class="fml sm">［${POS_NAME[V.p] || V.p}］${esc(V.m)}</div>${V.alt.length ? `<small>べつの つづり：${V.alt.map(esc).join("、")}</small>` : ""}
-      <button class="aubtn" onclick="sayWord('${id}')">🔊 発音を 聞く</button></div>`;
+      ${canSay(V) ? `<button class="aubtn" onclick="sayWord('${id}')">🔊 発音を 聞く</button>` : ""}</div>`;
   } else if (id.startsWith("f:")) {
     const F = formulaOf(id);
     body = `<div class="fcard ${c.s >= 5 ? "shiny" : ""}"><b>${F.name}</b><div class="fml">${F.ans}</div><small>ひっさつわざ「${F.skill}」</small></div>`;
@@ -1550,7 +1552,8 @@ function parent() {
     <div class="panel"><div class="sub">音</div>
       <div class="sndrow"><span>🎵 BGM</span><button class="big-btn ${S.bgm ? "primary" : ""}" onclick="S.bgm=!S.bgm;save();BGM.refresh();parent()">${S.bgm ? "🔊 オン" : "🔇 オフ"}</button></div>
       <div class="sndrow"><span>🔔 効果音</span><button class="big-btn ${S.sound ? "primary" : ""}" onclick="S.sound=!S.sound;save();parent()">${S.sound ? "🔊 オン" : "🔇 オフ"}</button></div>
-      <p class="small">マナーモードの ときは、イヤホンを つけていなければ 鳴らないように しています。<br>もし マナーモードで 音が 出てしまったら、ここで オフに してね。</p></div>
+      <p class="small">🎧 <b>リスニングの国</b>は BGMを オンに している ときだけ 遊べるよ（英語の 音声が ながれるよ）。</p>
+      <p class="small">マナーモードの ときは、イヤホンを つけていなければ 鳴らないように しています（英語の 音声も 同じ）。<br>もし マナーモードで 音が 出てしまったら、ここで オフに してね。</p></div>
     ${Cloud.enabled() ? `<div class="panel"><div class="sub">🔑 ふっかつコード（ぼうけんのしょ${SL.cur + 1}）</div><p class="codebig">${Cloud.code(SL.cur)}</p>
       <p class="small">この ぼうけんのしょ だけの コードだよ。データが きえて しまった ときに つかうよ。<br>おうちの人にも おしえてあげてね（おうちの人の スマホから 学習の ようすが 見られるよ）。</p></div>` : ""}`, "bg-shop");
 }

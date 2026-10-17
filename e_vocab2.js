@@ -518,7 +518,7 @@ versatile|形|多才な、用途の広い
 meticulous|形|細心の、きちょうめんな
 eloquent|形|雄弁な
 diligent|形|勤勉な
-frugal|形|質素な、倹約する
+frugal|形|質素な、倹約的な
 humble|形|謙虚な、つつましい
 indifferent|形|無関心な
 modest|形|控えめな、適度な
