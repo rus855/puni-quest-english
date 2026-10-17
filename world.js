@@ -1,0 +1,436 @@
+// ===== 国・章・ステージ（ぼうけんの地図） =====
+"use strict";
+
+// 国の一覧（章は各 c_*.js で CHAPTERS に追加する）
+const WORLDS = [
+  // id は ぷにまるクエストと 同じ（そうび・そざい・BGMの しくみを そのまま 使う）。名前だけ 英語の 国に かえている
+  { id: "kanji", name: "単語の国", icon: "📖", bg: ["#ffe3ef", "#ffb3d1"] },
+  { id: "kotoba", name: "文法の国", icon: "✏️", bg: ["#fff3cf", "#ffd66b"] },
+  { id: "math", name: "熟語・構文の国", icon: "🧩", bg: ["#dff3ff", "#8cc9ff"] },
+  { id: "sci", name: "リスニングの国", icon: "🎧", bg: ["#e2f8e4", "#86d993"] },
+  { id: "soc", name: "会話・読解の国", icon: "💬", bg: ["#efe6ff", "#b9a2ff"] },
+];
+
+// ---------- 問題バンク（ことば・理科・社会・算数の知識問題） ----------
+// BANK[id] = { w: 国, q: 問題, a: 正解, ng: まちがい, ex: 解説, t: カードの名前, type: choice/order/input, svg: 図 }
+const BANK = {};
+function bank(w, chId, list) {
+  return list.map((it, i) => {
+    const id = `q:${chId}-${i + 1}`;
+    BANK[id] = Object.assign({ w, ch: chId, type: it.order ? "order" : it.spell !== undefined ? "spell" : it.input !== undefined ? "input" : "choice" }, it);
+    return id;
+  });
+}
+
+// ---------- 算数の計算問題（その場で数字をつくる） ----------
+// MATH[id] = { name: カードの名前, gen() → { q, a, unit, ng(4択のとき), input(数字入力のとき), svg, ex } }
+const MATH = {};
+
+// 章：{ id, w: 国, g: 学年, sec: 区切り（漢字の 学年など）, name, icon, items: 出題する項目の id }
+const CHAPTERS = [];
+// 章の 学年を まとめて つける（保護者の 出題設定で つかう）
+function setGrades(map) { CHAPTERS.forEach((c) => { if (map[c.id]) c.g = map[c.id]; }); }
+// 漢字いがいの 章の 学年（その単元を おもに 習う 学年の めやす）
+// 英語版では 章を つくる ときに 学年（g：1＝中1 … 6＝高3）を つけている
+const GRADE_MAP = {};
+// 英語版には「受験用を のぞく」設定は ない
+const EXAM_CH = new Set();
+const EXAM_T = new Set();
+function applyGrades() {
+  setGrades(GRADE_MAP);
+  CHAPTERS.forEach((c) => { c.exam = EXAM_CH.has(c.id); });
+  Object.values(BANK).forEach((b) => { if (EXAM_T.has(b.t)) b.exam = true; });
+}
+
+// ---------- 敵のつよさ（ティア 1〜6） ----------
+const TIER = [null,
+  { hp: 40, atk: 7, bhp: 130, batk: 11 },
+  { hp: 90, atk: 14, bhp: 260, batk: 19 },
+  { hp: 155, atk: 21, bhp: 420, batk: 27 },
+  { hp: 225, atk: 29, bhp: 580, batk: 35 },
+  { hp: 310, atk: 37, bhp: 760, batk: 43 },
+  { hp: 390, atk: 41, bhp: 1250, batk: 46 },
+];
+// ティアごとの そざい [ふつうの敵, ボス]
+const TMAT = [null, ["kinoko", "donguri"], ["kai", "shizuku"], ["yogan", "honoo"], ["yuki", "hyou"], ["denki", "kaku"], ["yami", "yami"]];
+const TBG = [null, ["#c8f7c5", "#7fd88a"], ["#bfe9ff", "#ffe9a8"], ["#ffd0b0", "#ff8a65"], ["#eef7ff", "#b8d8f5"], ["#e6dcff", "#9f8cff"], ["#3a2a5c", "#1d1433"]];
+const ELS4 = ["fire", "water", "thunder", "leaf"];
+const EL_PREFIX = { fire: "メラ", water: "アクア", thunder: "ビリ", leaf: "リーフ", none: "ゴロ" };
+const SHAPE_NAME = { blob: "ぷるる", ghost: "ふわりん", rock: "ゴロン", mush: "キノコロ", crab: "カニッチ" };
+const SHAPES = ["blob", "ghost", "rock", "mush", "crab"];
+
+const worldChapters = (w) => CHAPTERS.filter((c) => c.w === w);
+// 保護者の 出題設定（S.cfg）
+//   g  ＝ ざっくり設定：この 学年までの 章を 出す（なし ＝ すべて）
+//   ch ＝ くわしい設定：章ごとの オン／オフ（ざっくり設定より 優先）
+//   at ＝ 最後に 変えた 時刻（ほかの 端末で 変えた 設定と くらべる）
+function cfgChapterOn(cfg, ch) {
+  if (!cfg) return true;
+  // 中学受験用の 章を のぞく 設定
+  if (cfg.noExam && ch.exam) return false;
+  if (cfg.ch && cfg.ch[ch.id] !== undefined) return !!cfg.ch[ch.id];
+  return !cfg.g || (ch.g || 1) <= cfg.g;
+}
+function chapterOn(ch) { return cfgChapterOn(typeof S !== "undefined" && S && S.cfg, ch); }
+// 前の版（kg：漢字の学年、off：お休みの章）の 設定を 新しい 形に なおす
+function migrateCfg(cfg) {
+  if (!cfg || (!cfg.kg && !cfg.off)) return cfg;
+  const ch = cfg.ch || {};
+  CHAPTERS.forEach((c) => {
+    if (cfg.kg && c.w === "kanji" && !cfg.kg.includes(c.g)) ch[c.id] = false;
+    if (cfg.off && cfg.off[c.id]) ch[c.id] = false;
+  });
+  return { g: cfg.g, ch, noExam: cfg.noExam, at: cfg.at || Date.now() };
+}
+// 設定の ようすを みじかい 文に する
+function cfgSummary(cfg) {
+  const n = cfg && cfg.ch ? Object.keys(cfg.ch).length : 0;
+  return `${cfg && cfg.g ? `${G_LABEL[cfg.g]}まで` : "すべての 学年"}${n ? `（くわしい設定 ${n}章）` : ""}`;
+}
+const activeChapters = (w) => worldChapters(w).filter(chapterOn);
+const chapterOf = (id) => CHAPTERS.find((c) => c.id === id) || (typeof EXTRA_CH !== "undefined" ? EXTRA_CH.find((c) => c.id === id) : null);
+
+// 章の じゅんばんから ティア と 属性を きめる
+function prepareChapters() {
+  applyGrades();
+  WORLDS.forEach((w) => {
+    const list = worldChapters(w.id);
+    list.forEach((ch, i) => {
+      // 区切り（sec）が あるときは、区切りの 中で ティアを きめる
+      const grp = list.filter((c) => c.sec === ch.sec), j = grp.indexOf(ch);
+      ch.idx = i; ch.no = j + 1;
+      ch.tier = Math.min(6, 1 + Math.floor((j * 6) / grp.length));
+      const seed = i + w.id.length * 3;
+      ch.els = [ELS4[seed % 4], ELS4[(seed + 1 + (i % 2)) % 4]];
+      ch.last = i === list.length - 1;
+    });
+  });
+}
+
+// ステージ n（1〜4）の 出題範囲：ステージ1は 章の はじめの 1/3、2は 2/3まで、3と ボスは ぜんぶ
+// （新しい 問題は 出やすく、正解した 問題は 出にくいので、前の 問題は ふくしゅうとして ときどき 出る）
+function stageItems(ch, n) {
+  const all = ch.items.filter(itemOn);
+  const items = all.length >= 3 ? all : ch.items.slice();
+  if (n >= 3) return items;
+  const k = Math.ceil(items.length / 3);
+  const part = items.slice(0, n * k);
+  return part.length >= 3 ? part : items.slice();
+}
+// 中学受験用の 問題（章の 中の 一部）… 保護者の 設定で のぞける
+const EXAM_ITEMS = new Set(["m:yokai", "m:kitai", "m:bane", "m:furiko", "m:nenrei", "m:tsurukame", "m:wasa", "m:ryusui"]);
+const isExamItem = (id) => EXAM_ITEMS.has(id) || !!(typeof BANK !== "undefined" && BANK[id] && BANK[id].exam);
+// リスニングの 問題は BGMが オンの ときだけ 出す
+function itemOn(id) { if (isListenId(id) && !audioOK()) return false; const c = typeof S !== "undefined" && S && S.cfg; return !(c && c.noExam && isExamItem(id)); }
+
+// 中立の属性（つよくも よわくもない）… ボスの「きかない」に つかう
+function neutralOf(el) { return ELS4.find((x) => x !== el && x !== BEATS[el] && BEATS[x] !== el); }
+
+function makeEnemy(ch, el, boss, n, k) {
+  const T = TIER[ch.tier];
+  const shape = boss ? (ch.last ? "boss" : SHAPES[(ch.idx + 2) % SHAPES.length]) : SHAPES[(ch.idx + n + k) % SHAPES.length];
+  const e = {
+    name: boss ? `${ch.boss || ch.name}の ヌシ` : `${EL_PREFIX[el === "rand" ? "none" : el]}${SHAPE_NAME[shape]}`,
+    hp: Math.round((boss ? T.bhp : T.hp) * (0.95 + ((n + k) % 3) * 0.05)), atk: boss ? T.batk : T.atk,
+    el, shape, color: ELEMENTS[el === "rand" ? "star" : el].color, boss,
+  };
+  if (el === "rand") { e.name = "まぼろしスライム"; e.shape = "blob"; e.color = "#b388ff"; }
+  return e;
+}
+
+// ステージの 敵の ならび
+function stageEnemies(ch, n) {
+  if (ch.maou) return maouEnemies(ch);
+  const [a, b] = ch.els;
+  let list;
+  if (n === 1) list = [[a], [a]];
+  else if (n === 2) list = [[b], [a]];
+  else if (n === 3) list = [[ch.tier >= 2 ? "rand" : b], [b]];
+  else list = [[b], [a, true]];
+  return list.map(([el, boss], k) => {
+    const e = makeEnemy(ch, el, !!boss, n, k);
+    if (e.el === "rand") { e.rand = true; e.el = pick(ELS4); }
+    // ボスの とくべつな ちから
+    if (boss && ch.last) e.phases = [a, b, ELS4.find((x) => x !== a && x !== b)];
+    else if (boss && ch.tier >= 3) e.imm = neutralOf(a);
+    if (!boss && ch.tier >= 5 && n === 2 && k === 0) { e.imm = "none"; e.name = "まほうゴーレム"; e.shape = "rock"; }
+    return e;
+  });
+}
+
+// ステージの 名前（国ごとに ふんいきを かえる）［ステージ1, 2, 3, ボス］
+const STAGE_NAMES = {
+  kanji: ["アルファベットの 門", "スペルの 小道", "ボキャブラリーの 森", "ヌシの 辞書の間"],
+  kotoba: ["グラマーの 門", "テンスの 坂道", "ルールの 迷路", "ヌシの 文法塔"],
+  math: ["フレーズの 広場", "パズルの 回廊", "構文の 塔", "ヌシの 組み立て工房"],
+  sci: ["イヤホンの 小道", "こだまの 谷", "ラジオの 塔", "ヌシの 放送室"],
+  soc: ["あいさつの 門", "おしゃべりの 広場", "ものがたりの 図書館", "ヌシの 大ホール"],
+};
+// 章ごとの ステージ名（ステージ1〜3 と ボス）。章の テーマと 国の 場所から つけた なまえ
+const CH_STAGE_NAMES = {
+  // （ぷにまるクエストの 章の 名前。英語版では 使わない）
+  k1a: ["かぞえうたの 小道", "にじいろの はらっぱ", "いろえんぴつの 森", "ヌシの アトリエ"],
+  k1b: ["おひさまの 丘", "あまつぶの 小道", "くもの ゆりかご", "ヌシの 天空だい"],
+  k1c: ["かけっこ 広場", "たいそうの 草はら", "ジャンプの いずみ", "ヌシの どうじょう"],
+  k1d: ["とうこうの 道", "こうていの すな場", "しょうてんがいの 角", "ヌシの 大時計台"],
+  // はなの丘
+  k2a: ["だんらんの にわ", "おるすばんの へや", "ゆうげの 台所", "ヌシの 大やしき"],
+  k2b: ["はるかぜの 坂", "せみしぐれの 林", "もみじの 小道", "ヌシの こよみ塔"],
+  k2c: ["ちょうちょの 花畑", "めだかの 小川", "どんぐりの 林", "ヌシの 大樹"],
+  k2d: ["こくばんの へや", "ずこうの 作業台", "おんがく室の 回ろう", "ヌシの 図書館"],
+  k2e: ["きたかぜの 四つ角", "ひがしの 商店街", "みなみの えき前", "ヌシの 見はらし台"],
+  k2f: ["はしれ はしれ 坂", "よみきかせの 木かげ", "うたごえの 広場", "ヌシの げき場"],
+  k2g: ["きいろい 花道", "まるい 池の ほとり", "ふとい 木の 下", "ヌシの いろどり城"],
+  k2h: ["おちゃの 間", "ゆみやの 練習場", "こめぐらの うら", "ヌシの 道具ぐら"],
+  // なみの海辺
+  k3a: ["ほうたいの 浜", "くすり箱の いわば", "しんさつ室の 灯台", "ヌシの 大病院"],
+  k3b: ["みなとの えき", "はしの たもと", "しまの 船着き場", "ヌシの 県ちょう"],
+  k3c: ["れんしゅうの 浜辺", "ふでばこの 入り江", "もんだいの 岩場", "ヌシの 研究じょ"],
+  k3d: ["しおかぜの 浜", "なみうちぎわ", "さんごの 入り江", "ヌシの うず潮"],
+  k3e: ["しあわせの 貝がら浜", "なみだの みさき", "ゆうきの いわば", "ヌシの まつり舞台"],
+  k3f: ["およぎの 入り江", "かけっこの すな浜", "がけの のぼり道", "ヌシの 灯台"],
+  k3g: ["まちあわせの さんばし", "おくりものの 浜", "しあいの 広場", "ヌシの 大あみ"],
+  k3h: ["りょうしの みなと", "おみせの 通り", "やくばの まど口", "ヌシの 大会社"],
+  k3i: ["ようふく屋の 前", "にもつの そうこ", "にわの ある家", "ヌシの デパート"],
+  k3j: ["あさやけの 浜", "まひるの すな丘", "よるの みなと", "ヌシの 時の塔"],
+  // こだまの山
+  k4a: ["北のくにの 峠", "ゆきぐにの 道", "みずうみの 里", "ヌシの 天守かく"],
+  k4b: ["西のくにの 峠", "みかん山の 坂", "火の山の ふもと", "ヌシの 大がらん"],
+  k4c: ["ねがいの ほこら", "ゆうきの つり橋", "きぼうの 見はらし岩", "ヌシの 山小屋"],
+  k4d: ["れんしゅうの 山道", "じっけんの 岩屋", "きろくの 石ひ", "ヌシの 大教室"],
+  k4e: ["はたの なびく 丘", "ぎかいの 石だん", "ほうりつの 門", "ヌシの ぎじどう"],
+  k4f: ["わかばの 谷", "さくらの 尾根", "まつかぜの 峠", "ヌシの 雪けい"],
+  k4g: ["ぼく場の 道", "すみやき小屋", "りょう師の 沢", "ヌシの 大農園"],
+  k4h: ["ものさしの 尾根", "はかりの 岩", "一億の 星空", "ヌシの 計算城"],
+  k4i: ["なかまの たき火", "まごの まつ里", "きょうりょくの 橋", "ヌシの 大広間"],
+  k4j: ["とびはねる 谷", "つづら おり道", "ころがり 坂", "ヌシの 山頂"],
+  // むかしの町
+  k5a: ["ようがんの 道", "じしゃくの 小路", "ゆげの 湯治場", "ヌシの からくり屋敷"],
+  k5b: ["ゆめみ 通り", "まよい 小路", "なさけの 長屋", "ヌシの 茶屋"],
+  k5c: ["ぶけ屋敷の 道", "おふれの 高札場", "せいじの 大門", "ヌシの 奉行所"],
+  k5d: ["てらこやの 縁側", "しょどうの 間", "そろばんの 座敷", "ヌシの 学問所"],
+  k5e: ["はたおりの 家", "かまどの 土間", "ちょきん箱の 蔵", "ヌシの 大店"],
+  k5f: ["かじ屋の 通り", "ぎょせんの 河岸", "にぎわう 市場", "ヌシの 大問屋"],
+  k5g: ["わたしぶねの 渡し", "ぜにの かけ橋", "ひっこしの 坂", "ヌシの 関所"],
+  k5h: ["ぶしの 屋敷町", "まき物の 書庫", "はいくの いおり", "ヌシの お城"],
+  k5i: ["きそくの 門", "じょうけんの 番所", "ゆるしの 木戸", "ヌシの お白州"],
+  k5j: ["ちょうちん 横丁", "かんざし 小路", "ふうりん 通り", "ヌシの 五重塔"],
+  // ほしの塔
+  k6a: ["しんぞうの 回廊", "のうの 迷路", "こきゅうの 階だん", "ヌシの 医務室"],
+  k6b: ["うちゅうの 窓", "わくせいの 回廊", "銀河の らせん階段", "ヌシの 天文台"],
+  k6c: ["つくえの 間", "まどべの 回廊", "たからの 宝物庫", "ヌシの 居間"],
+  k6d: ["ろうどくの 間", "はいくの 階", "とうろんの 円卓", "ヌシの 大講堂"],
+  k6e: ["ゆうびんの 塔", "ぎんこうの 金庫", "しょうぼうの はしご", "ヌシの 管制室"],
+  k6f: ["けんぽうの 間", "ないかくの 会議室", "さいばんの 法廷", "ヌシの 玉座"],
+  k6g: ["ちゅうせいの 鏡", "そんけいの 階", "ゆうじょうの 鐘", "ヌシの 心の間"],
+  k6h: ["たんけんの 階段", "はっしゃ台", "ほうもんの 扉", "ヌシの 時計じかけ"],
+  k6i: ["ひみつの 書だな", "げきの 舞台", "ぎんの 鏡の 間", "ヌシの 宝石の 間"],
+  k6j: ["せいざの 回廊", "ほしくずの 階段", "オーロラの 窓", "ヌシの 塔の てっぺん"],
+  // ことばの国
+  w1: ["よみがなの 門", "ふりがなの 小道", "なぞの 熟語ぐら", "ヌシの 読書室"],
+  w2: ["しおどきの 浜", "ぞうきばやし", "いえじの 坂", "ヌシの こんりゅう寺"],
+  w3: ["おくりがなの 道", "かきとりの 机", "とめはねの 庭", "ヌシの 書道場"],
+  w4: ["同じ音の こだま谷", "うつしの 鏡池", "おさめの くら", "ヌシの まちがい屋敷"],
+  w5: ["一石二鳥の 森", "以心伝心の 橋", "日進月歩の 坂", "ヌシの 四字道場"],
+  w6: ["右往左往の 迷路", "一進一退の 坂", "古今東西の 門", "ヌシの はんたい城"],
+  w7: ["ねこに小判の 店", "石の上の 小屋", "さるの 木のぼり林", "ヌシの ことわざ寺"],
+  w8: ["耳を すます 谷", "鼻たかの 丘", "首ながの 道", "ヌシの からだ劇場"],
+  w9: ["へんの パズル部屋", "つくりの 森", "かんむりの 塔", "ヌシの 部首迷宮"],
+  w10: ["さかさまの 鏡", "はんたい 通り", "にたもの 小道", "ヌシの 天びん台"],
+  w11: ["カタカナ ストリート", "アイデア ラボ", "ルールの 広場", "ヌシの スタジオ"],
+  w12: ["三寒四温の 野", "四苦八苦の 坂", "百発百中の 的場", "ヌシの 千差万別館"],
+  w13: ["灯台もと暗しの 岬", "井の中の かえる池", "石橋の わたし場", "ヌシの 金棒城"],
+  w14: ["手を やく 工房", "耳に たこの 港", "胸を はる 坂", "ヌシの 歯が立たぬ岩"],
+  w15: ["ていねい語の 玄関", "尊敬語の 客間", "謙譲語の 茶室", "ヌシの おもてなし御殿"],
+  // 算数の国
+  m1: ["ものさしの 広場", "はかりの 市場", "ますの 水くみ場", "ヌシの 単位工場"],
+  m2: ["くふうの 作業場", "まとめ算の 階段", "かっこの とびら", "ヌシの けいさん塔"],
+  m3: ["長い針の 時計台", "短い針の 歯車", "ぴったり 12時", "ヌシの 大時計"],
+  m4: ["はやさの 線路", "みちのりの 道", "じかんの 駅", "ヌシの 特急ホーム"],
+  m5: ["ねびきの 市場", "パーセントの 屋台", "ぶあいの 商店", "ヌシの 大バーゲン"],
+  m6: ["比の 天びん", "比例の 坂", "反比例の シーソー", "ヌシの わけまえ城"],
+  m7: ["わの かさなる 庭", "ベン図の 池", "どちらも 広場", "ヌシの 集合ホール"],
+  m8: ["へいきんの 平原", "まん中の 列", "いちばん多い 箱", "ヌシの グラフ城"],
+  m9: ["かずの ならぶ 道", "マッチの 家", "うえきの 並木道", "ヌシの きまり迷路"],
+  m10: ["三角の 畑", "台形の 田んぼ", "円の 池", "ヌシの 公式神殿"],
+  m11: ["かくどの 分かれ道", "正多角形の 庭", "三角形の 塔", "ヌシの 分度器城"],
+  m12: ["さいころの 部屋", "てんかいずの 工作室", "つみきの 町", "ヌシの 立体迷宮"],
+  m13: ["しごとの 作業場", "ならびかたの 列", "くみあわせの 広場", "ヌシの 大工事現場"],
+  m14: ["すいりの 館", "ぼうしの 部屋", "まほうじんの 床", "ヌシの 探偵事務所"],
+  m15: ["ケーキの 切り分け台", "やくぶんの 台所", "小数の 階段", "ヌシの 分数パーラー"],
+  m16: ["であいの 橋", "おいかけっこの 道", "トンネルの 入口", "ヌシの 鉄橋"],
+  m17: ["つるかめの 池", "りゅうすいの 川", "年れいの 写真館", "ヌシの 特殊算道場"],
+  m18: ["さかのぼりの 道", "もとにする量の 泉", "逆算の 塔", "ヌシの 逆さま城"],
+  // 理科の国
+  s1: ["リトマスの 小道", "色水の 池", "フェノールの 泉", "ヌシの 薬品だな"],
+  s2: ["じょうはつ皿の 台", "中和の 天びん", "においの 小部屋", "ヌシの 調合室"],
+  s3: ["ビーカーの 台", "ろ過の ろうと", "けっしょうの 洞くつ", "ヌシの ミョウバン城"],
+  s4: ["さんその あわ", "二酸化炭素の 霧", "すいその 風船", "ヌシの 気体タンク"],
+  s5: ["ろうそくの 灯", "ほのおの 台", "ゆげの 釜", "ヌシの かまど"],
+  s6: ["かん電池の 回路", "豆電球の 灯台", "電磁石の 工場", "ヌシの 発電所"],
+  s7: ["てこの シーソー", "ばねの トランポリン", "うきわの プール", "ヌシの つりあい城"],
+  s8: ["ふりこの 大時計", "かがみの 迷路", "おとの こだま", "ヌシの ひかりの塔"],
+  s9: ["しょうかの 道", "はいの 森", "しんぞうの 部屋", "ヌシの からだ研究所"],
+  s10: ["はっぱの 日なた", "ねっこの 地下", "めばえの 畑", "ヌシの 大温室"],
+  s11: ["メダカの 水そう", "こん虫の 草むら", "けんび鏡の 机", "ヌシの 生き物館"],
+  s12: ["雲の 観測所", "台風の 目", "季節風の 峠", "ヌシの 気象台"],
+  s13: ["三日月の 丘", "星座の 野原", "満月の 湖", "ヌシの プラネタリウム"],
+  s14: ["川原の 石ころ", "地層の がけ", "化石の 発くつ場", "ヌシの 火山口"],
+  s15: ["電熱線の 工房", "発電機の 小屋", "光電池の 屋根", "ヌシの エネルギー塔"],
+  s16: ["春の 野原", "夏の 森", "秋の 草むら", "ヌシの 冬眠の 穴"],
+  s17: ["ガスバーナーの 台", "メスシリンダーの 列", "てんびんの 部屋", "ヌシの 理科準備室"],
+  // 社会の国
+  h1: ["縄文の むら", "弥生の 田んぼ", "古墳の 丘", "ヌシの 平安京"],
+  h2: ["鎌倉の 坂道", "元寇の 浜", "金閣の 池", "ヌシの 室町御所"],
+  h3: ["鉄砲の 島", "関ヶ原の 野", "江戸の 城下町", "ヌシの 江戸城"],
+  h4: ["文明開化の 町", "汽車の 駅", "議会の 議場", "ヌシの 近代の 港"],
+  p1: ["国会の 門", "内閣の 廊下", "裁判所の 法廷", "ヌシの 三権の塔"],
+  p2: ["憲法の 広場", "人権の 庭", "平和の 鐘", "ヌシの 憲法記念館"],
+  g1: ["雨温図の 丘", "梅雨の 森", "雪国の 峠", "ヌシの 季節風の 岬"],
+  g2: ["りんご畑", "みかん山", "茶畑の 坂", "ヌシの 自動車工場"],
+  g3: ["白さぎの 城", "合掌造りの 里", "縄文杉の 森", "ヌシの 世界遺産の 島"],
+  g4: ["県庁の 道", "四十七の 橋", "日本地図の 広場", "ヌシの 首都タワー"],
+  g5: ["太平洋ベルトの 浜", "コンテナの 港", "工場の えんとつ", "ヌシの 貿易船"],
+  p3: ["まちの 役場", "国連の ロビー", "ユネスコの 図書室", "ヌシの 地球会議場"],
+  h5: ["人物カードの 間", "肖像画の 回廊", "歴史絵巻の 部屋", "ヌシの 英雄の 殿堂"],
+};
+const stageName = (ch, n) => (CH_STAGE_NAMES[ch.id] || STAGE_NAMES[ch.w] || STAGE_NAMES.kanji)[n - 1];
+
+// ステージの情報（バトルで つかう）
+function stageInfo(ch, n) {
+  return {
+    key: `${ch.id}-${n}`, ch, n, tier: ch.tier, id: ch.tier,
+    name: stageName(ch, n), bg: TBG[ch.tier],
+    mat: TMAT[ch.tier][0], bmat: TMAT[ch.tier][1], final: ch.last && n === 4,
+  };
+}
+
+// ---------- クリア状況 ----------
+const stStars = (key) => (S.stClear || {})[key] || 0;
+// 区切りの 最初の 章と、一度 遊んだ 章は ひらいている。ほかは 1つ前の（出題する）章を クリアすると ひらく
+function chapterOpen(ch) {
+  if (window.PQ_DEBUG && window.PQ_OPEN) return true; // デバッグ：ぜんぶ ひらく
+  if (ch.write) return writeOpen(ch);
+  if (ch.maou) return maouOpen(ch.maou);
+  // リスニングの 章は 音が 出せる ときだけ
+  if (ch.listen && !audioOK()) return false;
+  const list = activeChapters(ch.w).filter((c) => c.sec === ch.sec), i = list.indexOf(ch);
+  if (i <= 0 || stStars(`${ch.id}-1`) > 0) return true;
+  return chapterDone(list[i - 1]);
+}
+const stageOpen = (ch, n) => chapterOpen(ch) && (n === 1 || !!ch.maou || (window.PQ_DEBUG && window.PQ_OPEN) || stStars(`${ch.id}-${n - 1}`) > 0);
+const chapterDone = (ch) => stStars(`${ch.id}-4`) > 0;
+const chapterStars = (ch) => [1, 2, 3, 4].reduce((a, n) => a + stStars(`${ch.id}-${n}`), 0);
+function worldProgress(w) {
+  const list = activeChapters(w);
+  return { done: list.filter(chapterDone).length, all: list.length };
+}
+
+// ---------- 地図の画面 ----------
+// 国えらび
+function map() {
+  bgmHere = "home";
+  const ng = nigateIds().filter(itemOn);
+  const rec = recommend();
+  setScreen(`${topBar("ぼうけん")}
+    <button class="big-btn chartbtn" onclick="showChart()">📘 ぞくせいの あいしょう</button>
+    ${rec ? `<button class="stage rec" onclick="openChapter('${rec.id}')" style="--b1:#fff7cc;--b2:#ffe066"><span class="snum">⭐</span><span class="sinfo"><b>きょうの おすすめ</b><small>${WORLDS.find((w) => w.id === rec.w).icon} ${rec.name}</small></span><span class="sstate">▶</span></button>` : ""}
+    <div class="maplist">
+      ${WORLDS.map((w) => {
+        const p = worldProgress(w.id);
+        return `<button class="stage world" onclick="openWorld('${w.id}')" style="--b1:${w.bg[0]};--b2:${w.bg[1]}">
+          <span class="snum">${w.icon}</span><span class="sinfo"><b>${w.name}</b><small>${p.all ? `${p.done} / ${p.all} しょう クリア` : "💤 おやすみ中"}</small>
+          <span class="bar wb"><i style="width:${p.all ? (p.done / p.all) * 100 : 0}%"></i></span></span><span class="sstate">▶</span></button>`;
+      }).join("")}
+      <button class="stage nigate ${ng.length ? "" : "locked"}" ${ng.length ? `onclick="startBattle('nigate')"` : ""}>
+        <span class="snum">👻</span><span class="sinfo"><b>ニガテモンスター たいじ</b><small>${ng.length ? `${ng.length}体 うろついている！ たおすと 💎` : "まちがえた問題が モンスターになるよ"}</small></span><span class="sstate">${ng.length ? "▶" : ""}</span></button>
+      ${maouButton()}
+    </div>`, "bg-map");
+  if (!S.tut.map2) {
+    S.tut.map2 = 1; save();
+    modal(`<div class="mtitle">ぼうけんの ヒント</div><div class="bigicon">🗺️</div>
+      <p>英語の 5つの 国が あるよ。<b>すきな 国から</b> ぼうけんしよう！<br>章を クリアすると つぎの 章が ひらくよ。</p>
+      <p>🎧 リスニングの国は <b>BGMを オン</b>に すると 遊べるよ（⚙️せってい）。</p>
+      <p>てきには <b>ぞくせい</b> があって、あいしょうの いい ぶきなら <b>2ばい</b>！<br>てきを たおすと <b>そざい</b> が 手に はいって、ショップで そうびが つくれるよ。</p>
+      <p>⭐は ステージの できばえ（ノーミスで ⭐3つ）。</p>
+      <button class="big-btn primary" onclick="closeModal()">わかった！</button>`);
+  }
+}
+
+// その国で つぎに 遊ぶ章：区切りごとの いちばん手前の 未クリアの章のうち、進めている 区切りを 優先
+function nextChapter(w) {
+  const list = activeChapters(w);
+  const fr = [...new Set(list.map((c) => c.sec))].map((s) => list.filter((c) => c.sec === s))
+    .map((g) => ({ g, c: g.find((c) => !chapterDone(c)) })).filter((x) => x.c);
+  const go = fr.find((x) => x.g.some(chapterDone)) || fr[0];
+  return go && go.c;
+}
+// きょうの おすすめ：各国の つぎの 章から（日替わり）
+function recommend() {
+  const cands = WORLDS.filter((w) => w.id !== "sci" || audioOK()).map((w) => nextChapter(w.id)).filter(Boolean);
+  if (!cands.length) return null;
+  const d = new Date();
+  return cands[(d.getDate() + d.getMonth()) % cands.length];
+}
+
+let curWorld = "kanji";
+const curSec = {}; // 国ごとに えらんでいる 区切り（漢字の 学年）
+function openWorld(w, sec) {
+  if (w) curWorld = w;
+  bgmHere = curWorld;
+  snd("tap");
+  const W = WORLDS.find((x) => x.id === curWorld);
+  const all = activeChapters(curWorld);
+  // 区切りが ある国は、タブで 1つの 区切りだけ 見せる
+  const secs = [...new Set(all.map((c) => c.sec))].filter(Boolean);
+  if (sec) curSec[curWorld] = sec;
+  if (secs.length && !secs.includes(curSec[curWorld])) { const nx = nextChapter(curWorld); curSec[curWorld] = nx ? nx.sec : secs[0]; }
+  const list = secs.length ? all.filter((c) => c.sec === curSec[curWorld]) : all;
+  const tabs = secs.length > 1 ? `<div class="tabs wtabs">${secs.map((s) => {
+    const g = all.filter((c) => c.sec === s);
+    const lb = (typeof SEC_LABEL !== "undefined" && SEC_LABEL[s]) || { icon: "", name: s };
+    return `<button class="${curSec[curWorld] === s ? "on" : ""}" onclick="openWorld('', '${s}')"><span class="ti">${lb.icon}</span><small>${lb.name}</small><small>${g.filter(chapterDone).length}/${g.length}</small></button>`;
+  }).join("")}</div>` : "";
+  // リスニングの国：音が 出せない ときの お知らせ
+  const auNote = curWorld === "sci" ? (audioOK()
+    ? `<div class="aubar">🎧 音が 出るよ。📳 マナーモードの ときは 聞こえないので、解除してから 遊んでね</div>`
+    : `<div class="chhead" style="--b1:#fff;--b2:#e2f8e4"><div class="bigicon">🎵</div><b>BGMを オンに すると 遊べるよ</b><small>リスニングの国では 英語の 音声が 流れるよ。⚙️せっていで BGMを オンに してね。<br>📳 マナーモードの ときは 音が 聞こえないよ。</small><button class="big-btn primary" onclick="S.bgm=true;save();BGM.refresh();openWorld('sci')">🎵 BGMを オンに する</button></div>`) : "";
+  setScreen(`${topBar(W.name, "map")}${tabs}${auNote}
+    <div class="maplist">${list.length ? list.map((ch, i) => {
+      const open = chapterOpen(ch), done = chapterDone(ch), st = chapterStars(ch);
+      const els = ch.els.map((e) => ELEMENTS[e].icon).join("");
+      return `<button class="stage ${open ? "" : "locked"} ${ch.tier === 6 ? "sfinal" : ""}" ${open ? `onclick="openChapter('${ch.id}')"` : ""} style="--b1:${TBG[ch.tier][0]};--b2:${TBG[ch.tier][1]}">
+        <span class="snum">${ch.icon || i + 1}</span>
+        <span class="sinfo"><b>${i + 1}. ${ch.name}</b><small>${open ? `てき ${els}${ch.tier >= 2 ? "❓" : ""}　そざい ${MATS[TMAT[ch.tier][0]].em}${MATS[TMAT[ch.tier][1]].em}　⭐${st}/12` : ch.listen && !audioOK() ? "🎵 BGMを オンに すると 遊べるよ" : "まえの 章を クリアしよう"}</small></span>
+        <span class="sstate">${!open ? "🔒" : done ? "👑" : "▶"}</span></button>`;
+    }).join("") + writeButton(curWorld, curSec[curWorld]) : `<div class="chhead" style="--b1:#fff;--b2:#f3ecff"><div class="bigicon">💤</div><b>いまは おやすみ中</b><small>おうちの人の せっていで、この国の 章は お休みに なっているよ</small></div>`}</div>`, "bg-map");
+}
+
+// スペル道場の ボタン（単語の国の 学年ごと）
+function writeButton(w, sec) {
+  if (w !== "kanji" || typeof EXTRA_CH === "undefined") return "";
+  const ch = EXTRA_CH.find((c) => c.write && c.sec === sec);
+  if (!ch || !chapterOn(ch)) return "";
+  const open = chapterOpen(ch), st = chapterStars(ch);
+  return `<button class="stage write ${open ? "" : "locked"}" ${open ? `onclick="openChapter('${ch.id}')"` : ""}>
+    <span class="snum">⌨️</span><span class="sinfo"><b>スペル道場</b><small>${open ? `ヒントなしで 英単語を 入力する 道場。ごほうび たっぷり！　⭐${st}/12` : "この エリアの 章を 1つ クリアすると ひらく"}</small></span>
+    <span class="sstate">${!open ? "🔒" : chapterDone(ch) ? "👑" : "▶"}</span></button>`;
+}
+
+function openChapter(id) {
+  const ch = chapterOf(id);
+  curWorld = ch.w;
+  bgmHere = curWorld;
+  snd("tap");
+  setScreen(`${topBar(ch.name, "openWorld")}
+    <div class="chhead" style="--b1:${TBG[ch.tier][0]};--b2:${TBG[ch.tier][1]}"><div class="bigicon">${ch.icon || "📘"}</div><b>${ch.name}</b>
+      <small>${ch.desc || ""}</small><small>カード ${ch.items.filter((x) => S.cards[x] && S.cards[x].s > 0).length} / ${ch.items.length} まい</small></div>
+    <div class="maplist">${[1, 2, 3, 4].map((n) => {
+      const open = stageOpen(ch, n), st = stStars(`${ch.id}-${n}`);
+      const ens = stageEnemies(ch, n);
+      return `<button class="stage ${open ? "" : "locked"} ${ch.tier === 6 ? "sfinal" : ""}" ${open ? `onclick="startBattle('${ch.id}-${n}')"` : ""} style="--b1:${TBG[ch.tier][0]};--b2:${TBG[ch.tier][1]}">
+        <span class="snum">${n === 4 ? "👑" : n}</span>
+        <span class="sinfo"><b>${n === 4 ? `ボス：${stageName(ch, n)}` : `ステージ${n}：${stageName(ch, n)}`}</b><small>${open ? `てき ${ens.map((e) => (e.rand ? "❓" : ELEMENTS[e.el].icon)).join(" ")}` : "まえの ステージを クリアしよう"}</small></span>
+        <span class="sstate stars">${!open ? "🔒" : "⭐".repeat(st) + "☆".repeat(3 - st)}</span></button>`;
+    }).join("")}</div>`, "bg-map");
+}

@@ -1,0 +1,94 @@
+/* ===== 保護者ページ ===== */
+.pg-body { background: linear-gradient(#fff4fa, #f3ecff); min-height: 100vh; }
+.pg-wrap { max-width: 640px; margin: 0 auto; padding: calc(env(safe-area-inset-top) + 12px) 14px calc(env(safe-area-inset-bottom) + 24px); }
+.pg-title { text-align: center; color: var(--pink-d); font-size: 26px; margin: 20px 0 14px; }
+.pg-title small { display: block; font-size: 15px; color: var(--ink); }
+.pg-title.sm { font-size: 18px; margin: 4px 0 10px; }
+.pg-title.sm small { display: inline; font-size: 13px; }
+.pg-card { background: #fff; border-radius: 18px; padding: 12px 14px; margin-bottom: 12px; box-shadow: var(--shadow); }
+.pg-card p { font-size: 14px; }
+.pg-sub { font-weight: bold; margin-bottom: 8px; }
+.pg-in { width: 100%; font-size: 22px; text-align: center; letter-spacing: 2px; border: 3px solid #ffb3d1; border-radius: 14px; padding: 10px; text-transform: uppercase; }
+.pg-chk { display: flex; align-items: center; gap: 6px; font-size: 13px; margin: 10px 0; }
+.pg-err { color: #d6336c; font-weight: bold; }
+.pg-note { font-size: 12px; opacity: .75; margin: 6px 0 0; }
+.pg-note.center { text-align: center; }
+.pg-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.pg-tabs button { flex: 1; border: 0; border-radius: 14px; padding: 10px 4px; font-weight: bold; background: rgba(255,255,255,.6); font-size: 14px; }
+.pg-tabs button.on { background: #fff; color: var(--pink-d); box-shadow: var(--shadow); }
+.pg-tabs button:disabled { opacity: .4; }
+.pg-row3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; text-align: center; }
+.pg-row3 > div { display: flex; flex-direction: column; gap: 2px; }
+.pg-row3 small { font-size: 11px; opacity: .8; }
+.pg-row3 b { font-size: 18px; }
+.pg-chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; }
+.pg-bar { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; }
+.pg-bar i { width: 80%; background: #ffb3d1; border-radius: 4px 4px 0 0; min-height: 2px; }
+.pg-bar.today i { background: var(--pink); }
+.pg-bar span { font-size: 10px; }
+.pg-bar small { font-size: 9px; white-space: nowrap; }
+.pg-world { padding: 8px 0; border-bottom: 1px dashed #eee; }
+.pg-world:last-of-type { border-bottom: 0; }
+.pg-whead { display: flex; justify-content: space-between; font-size: 15px; }
+.pg-whead span { font-size: 13px; font-weight: bold; color: var(--pink-d); }
+.pg-br { display: block; height: 10px; background: #f1ecf3; border-radius: 99px; overflow: hidden; margin: 4px 0; }
+.pg-br i { display: block; height: 100%; background: linear-gradient(90deg, #ffd23f, #ff7eb3); }
+.pg-world small { font-size: 12px; }
+.pg-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+.pg-tag { font-size: 13px; background: #f7f1ff; border-radius: 99px; padding: 3px 10px; }
+.pg-tag.w-kanji { background: #ffe3ef; }
+.pg-tag.w-kotoba { background: #fff3cf; }
+.pg-tag.w-math { background: #dff3ff; }
+.pg-tag.w-sci { background: #e2f8e4; }
+.pg-tag.w-soc { background: #efe6ff; }
+.pg-tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+.pg-tbl td { padding: 4px 2px; border-bottom: 1px solid #f3eef5; }
+.pg-tbl td:nth-child(2), .pg-tbl td:nth-child(3) { text-align: right; white-space: nowrap; }
+
+/* 出題の 設定 */
+.pg-sub small { font-weight: normal; font-size: 11px; opacity: .7; }
+.pg-gbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin: 6px 0 10px; }
+.pg-gb { border: 2px solid #e6dcf0; background: #fff; border-radius: 10px; padding: 9px 2px; font-size: 12px; font-weight: bold; }
+.pg-gb.on { background: var(--pink); color: #fff; border-color: var(--pink-d); }
+.pg-top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px; background: rgba(255,247,251,.95); padding: 8px 0; margin-bottom: 8px; }
+.pg-top b { flex: 1; text-align: center; font-size: 16px; }
+.pg-top span { font-size: 12px; }
+.pg-wtabs { position: sticky; top: 62px; z-index: 9; background: rgba(255,247,251,.95); padding: 4px 0; }
+.pg-wtabs button { display: flex; flex-direction: column; align-items: center; font-size: 20px; }
+.pg-wtabs small { font-size: 10px; }
+.pg-grade { border-top: 1px dashed #eee; padding: 6px 0; }
+.pg-ghead { display: flex; justify-content: space-between; align-items: center; margin: 4px 0; }
+.pg-ghead b { color: var(--pink-d); }
+.pg-ghead button { border: 0; background: #f1ecf3; border-radius: 99px; padding: 5px 10px; font-size: 11px; margin-left: 4px; }
+.pg-ch { display: flex; align-items: center; gap: 8px; padding: 7px 2px; font-size: 14px; }
+.pg-ch input { width: 22px; height: 22px; flex: none; }
+.pg-ch span { flex: 1; }
+.pg-ov { font-style: normal; font-size: 10px; background: #fff3b0; border-radius: 99px; padding: 1px 7px; }
+
+.pg-exam { background: #fff7e6; border-radius: 12px; padding: 10px; margin: 6px 0 10px; }
+.pg-exam small { font-size: 11px; color: #8a6d3b; }
+.pg-exl { color: #c2410c; font-size: 11px; white-space: nowrap; }
+.pg-off { opacity: .45; }
+
+.pg-manuals { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 12px; }
+.pg-manuals a { display: block; text-align: center; text-decoration: none; color: #2f5d8a; background: #eaf2fb; border: 2px solid #c9dbef; border-radius: 12px; padding: 10px 4px; font-weight: bold; font-size: 13px; }
+
+/* コードの 登録（最大3つ） */
+.pg-codebox { border: 2px solid #e6dcf0; border-radius: 14px; padding: 10px; margin: 10px 0; background: #fff; }
+.pg-codebox.on { border-color: var(--pink); background: #fff7fb; }
+.pg-codehead { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 4px; }
+.pg-codehead span { font-size: 12px; color: #6b5b8a; font-weight: bold; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-codebtns { display: flex; gap: 6px; margin-top: 6px; }
+.pg-codebtns .big-btn { margin: 0; padding: 9px 4px; font-size: 13px; }
+.pg-codebtns .big-btn.primary { flex: 2; }
+.pg-codebtns .big-btn:not(.primary) { flex: 1; }
+.pg-kids { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 10px; }
+.pg-kids small { font-size: 11px; font-weight: bold; color: #6b5b8a; }
+.pg-kids button { border: 2px solid #e6dcf0; background: #fff; border-radius: 99px; padding: 6px 12px; font-size: 13px; font-weight: bold; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pg-kids button.on { background: var(--pink); border-color: var(--pink-d); color: #fff; }
+
+/* ゲームで けされた コード */
+.pg-delnote { margin: 2px 0 6px; font-size: 12px; color: #c2410c; background: #fff1e6; border-radius: 10px; padding: 6px 8px; font-weight: bold; }
+.pg-delcard { background: #fff1e6; border: 2px solid #ffc9a3; color: #8a3b00; font-size: 14px; }
+.pg-delcard small { display: block; margin-top: 4px; color: #6b4a2a; font-size: 12px; }
+.pg-delcode { margin-top: 6px; font-size: 20px; font-weight: bold; letter-spacing: .06em; text-align: center; background: #fff; border-radius: 10px; padding: 6px; user-select: all; }

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>ぷにまるクエスト ENGLISH</title>
+  <meta name="description" content="英単語・文法・リスニングで強くなる、中学生・高校生向け英語学習RPG">
+  <!-- iPhoneのホーム画面に追加したときの設定 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="ぷにまるEN">
+  <meta name="theme-color" content="#ffd9ea">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="icon" type="image/png" href="icons/icon-192.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" id="css" href="style.css">
+</head>
+<body>
+  <div id="app"><div class="loading">よみこみちゅう…</div></div>
+  <div id="modal"></div>
+  <div id="toast"></div>
+  <div id="updbar" class="hidden"></div>
+  <script>
+    // いちばん新しい版の番号を たしかめてから、その版の ファイルを 読みこむ
+    // （古いファイルが のこらないように、ファイル名に ?v=版 を つける）
+    (function () {
+      var FILES = ["data.js", "world.js", "e_vocab1.js", "e_vocab2.js", "eigo.js", "e_gram.js", "e_idiom.js", "e_listen.js", "e_talk.js", "cloud.js", "pets.js", "music.js", "gear.js", "extra.js", "treasure.js", "app.js"];
+      function boot(v) {
+        window.APP_V = v || 0;
+        var q = v ? "?v=" + v : "";
+        if (v) document.getElementById("css").href = "style.css" + q;
+        (function next(i) {
+          if (i >= FILES.length) return;
+          var s = document.createElement("script");
+          s.src = FILES[i] + q;
+          s.onload = function () { next(i + 1); };
+          s.onerror = function () { next(i + 1); };
+          document.body.appendChild(s);
+        })(0);
+      }
+      var done = false;
+      // ネットに つながらないときは 2秒で あきらめて、保存してある 版で うごかす
+      var timer = setTimeout(function () { if (!done) { done = true; boot(0); } }, 2000);
+      fetch("version.json?t=" + Date.now(), { cache: "no-store" })
+        .then(function (r) { return r.json(); })
+        .then(function (j) { if (!done) { done = true; clearTimeout(timer); boot(j.v); } })
+        .catch(function () { if (!done) { done = true; clearTimeout(timer); boot(0); } });
+    })();
+  </script>
+</body>
+</html>

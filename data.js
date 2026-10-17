@@ -1,0 +1,402 @@
+// ===== ぷにまるクエスト ENGLISH：ゲームデータ（そうび・なかま・そざい） =====
+
+// --- 小さな 道具 ---
+
+// 乱数ヘルパー
+const ri = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+// 小数の誤差をなくす（小数第2位まで）
+const r2 = (x) => Math.round(x * 100) / 100;
+
+// 英語版では 算数の 公式は 使わない
+const FORMULAS = [];
+
+// --- ぞくせい（属性） ---
+const ELEMENTS = {
+  none: { icon: "・", name: "なし", color: "#aaa" },
+  fire: { icon: "🔥", name: "ほのお", color: "#ff7a59" },
+  water: { icon: "💧", name: "みず", color: "#4aa8ff" },
+  thunder: { icon: "⚡", name: "かみなり", color: "#ffc400" },
+  leaf: { icon: "🌿", name: "くさ", color: "#4cc46a" },
+  star: { icon: "✨", name: "ほし", color: "#c77dff" },
+};
+// あいしょう：🔥は🌿に強い → 🌿は⚡に強い → ⚡は💧に強い → 💧は🔥に強い
+const BEATS = { fire: "leaf", leaf: "thunder", thunder: "water", water: "fire" };
+
+// こうげきの属性(att) が 相手の属性(def) に どれだけ効くか
+// imm：相手が「きかない」属性（none なら ぞくせいなしの こうげきが きかない）
+function effect(att, def, imm) {
+  if (imm && att === imm) return 0;
+  if (att === "star") return 1.25;
+  if (att === "none" || def === "none" || !def) return 1;
+  if (BEATS[att] === def) return 2;
+  if (BEATS[def] === att || att === def) return 0.5;
+  return 1;
+}
+const EFFECT_LABEL = (x) => (x === 0 ? "きかない" : x >= 2 ? "こうかばつぐん" : x < 1 ? "いまひとつ" : x > 1 ? "よくきく" : "ふつう");
+const EFFECT_MARK = (x) => (x === 0 ? "✖" : x >= 2 ? "◎" : x < 1 ? "△" : "○");
+
+// --- そざい（てきが おとす。そうびを つくるのに つかう） ---
+const MATS = {
+  kinoko: { name: "もりのキノコ", em: "🍄" },
+  donguri: { name: "ヌシのドングリ", em: "🌰" },
+  kai: { name: "きれいなかいがら", em: "🐚" },
+  shizuku: { name: "うみのしずく", em: "💠" },
+  yogan: { name: "ようがんいし", em: "🪨" },
+  honoo: { name: "ほのおのかけら", em: "🔶" },
+  yuki: { name: "ゆきのけっしょう", em: "❄️" },
+  hyou: { name: "えいきゅうひょう", em: "🧊" },
+  denki: { name: "でんきいし", em: "🔋" },
+  kaku: { name: "かみなりのかく", em: "🌩️" },
+  yami: { name: "やみのかけら", em: "🌑" },
+  // 国ごとの そざい（その国の 章で 手に はいる）
+  moji: { name: "たんごの かけら", em: "📜" },
+  koto: { name: "ぶんぽうの しおり", em: "🔖" },
+  suuji: { name: "パズルの クリスタル", em: "🔷" },
+  kagaku: { name: "ひびきの すいしょう", em: "🔮" },
+  rekishi: { name: "おしゃべりの つぼ", em: "🏺" },
+  // 国ごとの レアな そざい（むずかしい 章の つよい てき・ボスほど 出やすい）
+  kinsumi: { name: "きんの インク", em: "🖋️", rare: 1 },
+  ryuhitsu: { name: "りゅうの はねペン", em: "🐉", rare: 2 },
+  kotohana: { name: "ことのはの 花", em: "💮", rare: 1 },
+  tsunobue: { name: "こだまの つの笛", em: "📯", rare: 2 },
+  haguruma: { name: "むげんの 歯車", em: "⚙️", rare: 1 },
+  compass: { name: "おうごんの コンパス", em: "🧭", rare: 2 },
+  flask: { name: "いなびかりの フラスコ", em: "⚗️", rare: 1 },
+  hoshikake: { name: "ながれぼしの かけら", em: "🌠", rare: 2 },
+  magatama: { name: "まがたま", em: "📿", rare: 1 },
+  kinin: { name: "きんいん", em: "🏵️", rare: 2 },
+  // ぞくせいの たま（その ぞくせいの てきが おとす）
+  hidama: { name: "ひの たま", em: "🔴" },
+  mizutama: { name: "みずの たま", em: "🔵" },
+  raitama: { name: "いかずちの たま", em: "🟡" },
+  midotama: { name: "みどりの たま", em: "🟢" },
+  // まおうを たおすと 手に はいる
+  niji: { name: "にじの ほうぎょく", em: "🌈", rare: 3 },
+};
+const WORLD_MAT = { kanji: "moji", kotoba: "koto", math: "suuji", sci: "kagaku", soc: "rekishi" };
+// 国ごとの レア そざい［レア, スーパーレア］
+const WORLD_RARE = { kanji: ["kinsumi", "ryuhitsu"], kotoba: ["kotohana", "tsunobue"], math: ["haguruma", "compass"], sci: ["flask", "hoshikake"], soc: ["magatama", "kinin"] };
+// ぞくせいの たま
+const ELEM_MAT = { fire: "hidama", water: "mizutama", thunder: "raitama", leaf: "midotama" };
+
+// --- そうびの とくしゅ能力（sp） ---
+// 武器 crit:かいしん率 hit:あたる確率 extra:ついげき率 multi:2回目の強さ stun:しびれ率 drain:きゅうしゅう率
+//      boss:ボスに強い pierce:いまひとつを無視 exec:とどめ first:先制 combo:コンボ強化 gauge:ゲージ+ coin:コイン+
+// 防具 reflect:はんげき dodge:かいひ regen:正解で回復 endure:くいしばり guard1:最初の こうげきを 半分
+// ぼうし hint:ヒント egg:タマゴ成長 mat:そざい petfast:なかまチャージ coin:コイン+ regen:正解で回復
+function spText(sp) {
+  if (!sp) return "";
+  const t = [];
+  if (sp.crit) t.push(`かいしん${Math.round(sp.crit * 100)}%（2ばい）`);
+  if (sp.hit) t.push(`大ぶり（あたる確率${Math.round(sp.hit * 100)}%）`);
+  if (sp.extra) t.push(`ついげき${Math.round(sp.extra * 100)}%`);
+  if (sp.multi) t.push("2回こうげき");
+  if (sp.stun) t.push(`しびれ${Math.round(sp.stun * 100)}%`);
+  if (sp.drain) t.push(`ダメージの${Math.round(sp.drain * 100)}%を きゅうしゅう`);
+  if (sp.boss) t.push("ボスに 1.5ばい");
+  if (sp.pierce) t.push("いまひとつ・きかないを むし");
+  if (sp.exec) t.push("のこり少ない てきに 2ばい");
+  if (sp.first) t.push("さいしょの 一撃 2ばい");
+  if (sp.combo) t.push("コンボで さらに 強くなる");
+  if (sp.gauge) t.push(`ゲージ +${sp.gauge}`);
+  if (sp.coin) t.push(`コイン +${Math.round(sp.coin * 100)}%`);
+  if (sp.reflect) t.push(`はんげき${Math.round(sp.reflect * 100)}%`);
+  if (sp.dodge) t.push(`かいひ${Math.round(sp.dodge * 100)}%`);
+  if (sp.regen) t.push(`正解で ❤️${Math.round(sp.regen * 100)}% かいふく`);
+  if (sp.endure) t.push("くいしばり（1回 たえる）");
+  if (sp.guard1) t.push("さいしょの こうげき 半分");
+  if (sp.hint) t.push("てきごとに 1回 ヒント");
+  if (sp.egg) t.push(`タマゴが ${sp.egg}ばい そだつ`);
+  if (sp.mat) t.push("そざいが 出やすい");
+  if (sp.petfast) t.push("なかまの チャージが 早い");
+  return t.join("・");
+}
+
+// --- ショップのアイテム ---
+// type: weapon / armor / hat, atk: こうげき, def: ぼうぎょ, hp: たいりょく, el: 属性
+// res: この属性の こうげきを 半分にする, weak: この属性の こうげきを 1.5ばい うける
+// price: コイン, mat: ひつような そざい, gem: ほうせき, look: 見た目
+// unlock: この強さ（ティア）の 章を クリアすると ショップに 並ぶ（0 は最初から）
+// series: 国の そうび
+const ITEMS = [
+  { id: "w_stick", type: "weapon", name: "きのぼう", atk: 3, el: "none", price: 0, unlock: 0 },
+  { id: "w_sling", type: "weapon", name: "ぱちんこ", atk: 5, el: "none", price: 100, mat: { kinoko: 4 }, unlock: 0, look: "sling", sp: { first: 2 } },
+  { id: "w_fire1", type: "weapon", name: "ほのおのつえ", atk: 8, el: "fire", price: 120, mat: { kinoko: 6 }, unlock: 0 },
+  { id: "w_hammer", type: "weapon", name: "いしのハンマー", atk: 10, el: "none", price: 240, mat: { kinoko: 8, donguri: 2 }, unlock: 1 },
+  { id: "w_thunder1", type: "weapon", name: "いなずまハンマー", atk: 12, el: "thunder", price: 300, mat: { kinoko: 4, donguri: 4 }, unlock: 1 },
+  { id: "w_axe", type: "weapon", name: "おおきな オノ", atk: 17, el: "none", price: 400, mat: { kinoko: 10, donguri: 4 }, unlock: 1, look: "axe", sp: { hit: 0.75 } },
+  { id: "w_water1", type: "weapon", name: "しずくのけん", atk: 16, el: "water", price: 600, mat: { kai: 8, shizuku: 4 }, unlock: 2 },
+  { id: "w_knife", type: "weapon", name: "ぎんの ナイフ", atk: 11, el: "none", price: 560, mat: { kai: 8 }, unlock: 2, look: "knife", sp: { crit: 0.3 } },
+  { id: "w_leaf1", type: "weapon", name: "はっぱブーメラン", atk: 18, el: "leaf", price: 600, mat: { yogan: 8, honoo: 2 }, unlock: 3 },
+  { id: "w_thunder2", type: "weapon", name: "サンダーボルト", atk: 26, el: "thunder", price: 900, mat: { kai: 6, yogan: 6, honoo: 4 }, unlock: 3, look: "bolt" },
+  { id: "w_whip", type: "weapon", name: "いばらの ムチ", atk: 19, el: "leaf", price: 900, mat: { yogan: 6, honoo: 2 }, unlock: 3, look: "whip", sp: { extra: 0.35 } },
+  { id: "w_steel", type: "weapon", name: "はがねのつるぎ", atk: 22, el: "none", price: 900, mat: { yuki: 6, yogan: 6 }, unlock: 4 },
+  { id: "w_leaf2", type: "weapon", name: "せいれいのゆみ", atk: 30, el: "leaf", price: 1200, mat: { yuki: 8, hyou: 4 }, unlock: 4 },
+  { id: "w_fire2", type: "weapon", name: "ドラゴンフレイム", atk: 30, el: "fire", price: 1200, mat: { yogan: 8, yuki: 4, hyou: 2 }, unlock: 4 },
+  { id: "w_spear", type: "weapon", name: "こおりの やり", atk: 27, el: "water", price: 1500, mat: { yuki: 8, hyou: 2 }, unlock: 4, look: "spear", sp: { stun: 0.15 } },
+  { id: "w_water2", type: "weapon", name: "オーシャンブレード", atk: 32, el: "water", price: 1800, mat: { denki: 8, kaku: 4 }, unlock: 5 },
+  { id: "w_vamp", type: "weapon", name: "きゅうけつの つるぎ", atk: 29, el: "none", price: 2000, mat: { denki: 6, kaku: 2 }, unlock: 5, look: "knife", sp: { drain: 0.15 } },
+  { id: "w_giant", type: "weapon", name: "きょじんの たいけん", atk: 54, el: "none", price: 3600, mat: { yami: 6 }, unlock: 6, look: "greatsword", sp: { hit: 0.7 } },
+  { id: "w_rainbow", type: "weapon", name: "にじの ブーメラン", atk: 34, el: "star", price: 4400, gem: 4, mat: { yami: 6 }, unlock: 6, look: "rainbowboom", sp: { multi: 0.5 } },
+  { id: "w_star", type: "weapon", name: "スターロッド", atk: 46, el: "star", price: 6000, gem: 8, mat: { yami: 8 }, unlock: 6 },
+  // 国の そうび（その国の そざいで つくる）
+  { id: "w_k1", type: "weapon", name: "まほうの ふで", atk: 14, el: "none", price: 600, mat: { moji: 6 }, unlock: 2, look: "brush", series: "kanji", sp: { crit: 0.25 } },
+  { id: "w_k2", type: "weapon", name: "きんの ふで", atk: 26, el: "fire", price: 1600, mat: { moji: 12 }, unlock: 4, look: "brush", series: "kanji", sp: { crit: 0.3 } },
+  { id: "w_k3", type: "weapon", name: "でんせつの ふで", atk: 40, el: "none", price: 3600, mat: { moji: 20 }, unlock: 6, look: "brush", series: "kanji", sp: { crit: 0.35, pierce: true } },
+  { id: "w_w1", type: "weapon", name: "ことだまの つえ", atk: 12, el: "leaf", price: 600, mat: { koto: 6 }, unlock: 2, look: "kotostaff", series: "kotoba", sp: { gauge: 1 } },
+  { id: "w_w2", type: "weapon", name: "ひびきの ハープ", atk: 24, el: "water", price: 1600, mat: { koto: 12 }, unlock: 4, look: "harp", series: "kotoba", sp: { gauge: 1, stun: 0.1 } },
+  { id: "w_w3", type: "weapon", name: "ことのはの つるぎ", atk: 38, el: "thunder", price: 3600, mat: { koto: 20 }, unlock: 6, look: "kotosword", series: "kotoba", sp: { gauge: 2 } },
+  { id: "w_m1", type: "weapon", name: "じょうぎ ソード", atk: 13, el: "none", price: 600, mat: { suuji: 6 }, unlock: 2, look: "ruler", series: "math", sp: { combo: true } },
+  { id: "w_m2", type: "weapon", name: "コンパス ランス", atk: 24, el: "thunder", price: 1600, mat: { suuji: 12 }, unlock: 4, look: "spear", series: "math", sp: { multi: 0.35 } },
+  { id: "w_m3", type: "weapon", name: "むげんの ものさし", atk: 38, el: "none", price: 3600, mat: { suuji: 20 }, unlock: 6, look: "ruler", series: "math", sp: { combo: true, exec: true } },
+  { id: "w_s1", type: "weapon", name: "じしゃく ハンマー", atk: 13, el: "thunder", price: 600, mat: { kagaku: 6 }, unlock: 2, look: "magnet", series: "sci", sp: { stun: 0.12 } },
+  { id: "w_s2", type: "weapon", name: "フラスコ ボム", atk: 25, el: "fire", price: 1600, mat: { kagaku: 12 }, unlock: 4, look: "flask", series: "sci", sp: { extra: 0.4 } },
+  { id: "w_s3", type: "weapon", name: "うちゅう レーザー", atk: 39, el: "none", price: 3600, mat: { kagaku: 20 }, unlock: 6, look: "laser", series: "sci", sp: { pierce: true, extra: 0.3 } },
+  { id: "w_h1", type: "weapon", name: "ぶしの かたな", atk: 14, el: "none", price: 600, mat: { rekishi: 6 }, unlock: 2, look: "katana", series: "soc", sp: { first: 2 } },
+  { id: "w_h2", type: "weapon", name: "しょうぐんの やり", atk: 26, el: "leaf", price: 1600, mat: { rekishi: 12 }, unlock: 4, look: "spear", series: "soc", sp: { boss: 1.5 } },
+  { id: "w_h3", type: "weapon", name: "てんかの めいとう", atk: 40, el: "fire", price: 3600, mat: { rekishi: 20 }, unlock: 6, look: "katana", series: "soc", sp: { boss: 1.5, crit: 0.2 } },
+
+  { id: "a_cloth", type: "armor", name: "ぬののふく", def: 0, price: 0, color: "#ffffff", unlock: 0 },
+  { id: "a_leather", type: "armor", name: "かわのよろい", def: 4, price: 80, mat: { kinoko: 4 }, color: "#c98a4b", unlock: 0 },
+  { id: "a_leaf", type: "armor", name: "はっぱのよろい", def: 6, res: "leaf", weak: "fire", price: 200, mat: { kinoko: 8 }, color: "#6ccf6a", unlock: 1 },
+  { id: "a_iron", type: "armor", name: "てつのよろい", def: 9, price: 500, mat: { kai: 6 }, color: "#9fb3c8", unlock: 2 },
+  { id: "a_fire", type: "armor", name: "ほのおのよろい", def: 10, res: "fire", weak: "water", price: 600, mat: { kai: 6, shizuku: 2 }, color: "#ff8a5c", unlock: 2 },
+  { id: "a_spike", type: "armor", name: "トゲトゲよろい", def: 8, price: 640, mat: { kai: 6, donguri: 2 }, color: "#8d6e63", unlock: 2, sp: { reflect: 0.25 } },
+  { id: "a_water", type: "armor", name: "みずのよろい", def: 13, res: "water", weak: "thunder", price: 800, mat: { yogan: 8, honoo: 2 }, color: "#5fb4ff", unlock: 3 },
+  { id: "a_ninja", type: "armor", name: "しのびの ふく", def: 7, price: 800, mat: { yogan: 6 }, color: "#37474f", unlock: 3, sp: { dodge: 0.2 } },
+  { id: "a_thunder", type: "armor", name: "かみなりのよろい", def: 16, res: "thunder", weak: "leaf", price: 1000, mat: { yuki: 8, hyou: 2 }, color: "#ffd54a", unlock: 4 },
+  { id: "a_gold", type: "armor", name: "ゴールドアーマー", def: 18, price: 1600, mat: { yuki: 6, denki: 6 }, color: "#f5c400", unlock: 5 },
+  { id: "a_angel", type: "armor", name: "てんしの はごろも", def: 14, price: 2000, mat: { denki: 8 }, color: "#fff8e1", unlock: 5, sp: { regen: 0.04 } },
+  { id: "a_mirror", type: "armor", name: "かがみの よろい", def: 20, price: 3600, mat: { yami: 6 }, color: "#cfd8dc", unlock: 6, sp: { reflect: 0.4 } },
+  { id: "a_star", type: "armor", name: "ほしぞらのローブ", def: 24, res: "all", price: 5000, gem: 6, mat: { yami: 8 }, color: "#6a5cff", unlock: 6 },
+  { id: "a_k", type: "armor", name: "もじの はかま", def: 11, price: 1000, mat: { moji: 8 }, color: "#3949ab", unlock: 3, series: "kanji", sp: { endure: true } },
+  { id: "a_w", type: "armor", name: "ことだまの マント", def: 11, price: 1000, mat: { koto: 8 }, color: "#ffb74d", unlock: 3, series: "kotoba", sp: { regen: 0.03 } },
+  { id: "a_m", type: "armor", name: "すうじの よろい", def: 13, price: 1000, mat: { suuji: 8 }, color: "#4fc3f7", unlock: 3, series: "math", sp: { guard1: true } },
+  { id: "a_s", type: "armor", name: "かがくの はくい", def: 10, price: 1000, mat: { kagaku: 8 }, color: "#f5f5f5", unlock: 3, series: "sci", sp: { dodge: 0.15 } },
+  { id: "a_h", type: "armor", name: "ぶしの よろい", def: 15, price: 1000, mat: { rekishi: 8 }, color: "#b71c1c", unlock: 3, series: "soc", sp: { reflect: 0.2 } },
+
+  { id: "h_none", type: "hat", name: "なし", hp: 0, price: 0, unlock: 0 },
+  { id: "h_ribbon", type: "hat", name: "リボン", hp: 10, price: 100, unlock: 0 },
+  { id: "h_flower", type: "hat", name: "はなかんむり", hp: 10, price: 300, mat: { kinoko: 6 }, unlock: 1, sp: { egg: 2 } },
+  { id: "h_cat", type: "hat", name: "ネコみみ", hp: 15, price: 240, unlock: 1 },
+  { id: "h_goggles", type: "hat", name: "たんけん ゴーグル", hp: 15, price: 600, mat: { kagaku: 4 }, unlock: 2, series: "sci", sp: { mat: 0.2 } },
+  { id: "h_mortar", type: "hat", name: "がくしゃ ぼう", hp: 15, price: 600, mat: { moji: 4 }, unlock: 2, series: "kanji", sp: { hint: true } },
+  { id: "h_bow", type: "hat", name: "ことばの リボン", hp: 15, price: 600, mat: { koto: 4 }, unlock: 2, series: "kotoba", sp: { coin: 0.3 } },
+  { id: "h_starclip", type: "hat", name: "ほしの かみかざり", hp: 15, price: 600, mat: { suuji: 4 }, unlock: 2, series: "math", sp: { petfast: true } },
+  { id: "h_wizard", type: "hat", name: "まほうのぼうし", hp: 25, price: 500, unlock: 3 },
+  { id: "h_kabuto", type: "hat", name: "しょうぐんの かぶと", hp: 35, price: 1200, mat: { rekishi: 6 }, unlock: 4, series: "soc" },
+  { id: "h_crown", type: "hat", name: "おうかん", hp: 40, price: 1000, gem: 3, unlock: 5 },
+  { id: "h_halo", type: "hat", name: "てんしのわっか", hp: 60, price: 2400, gem: 6, unlock: 6, sp: { regen: 0.02 } },
+
+  // ---- 国の レア そざいを あつめて つくる 強力そうび ----
+  { id: "w_ryu", type: "weapon", name: "りゅうおうの ふで", atk: 48, el: "fire", price: 3000, gem: 5, mat: { ryuhitsu: 2, kinsumi: 4, hidama: 6 }, unlock: 5, look: "brush", series: "kanji", sp: { crit: 0.35, first: 2 } },
+  { id: "w_kotodama", type: "weapon", name: "ことだまの たて琴", atk: 46, el: "water", price: 3000, gem: 5, mat: { tsunobue: 2, kotohana: 4, mizutama: 6 }, unlock: 5, look: "harp", series: "kotoba", sp: { gauge: 1, stun: 0.25 } },
+  { id: "w_mugen", type: "weapon", name: "むげん ギア ソード", atk: 50, el: "thunder", price: 3000, gem: 5, mat: { compass: 2, haguruma: 4, raitama: 6 }, unlock: 5, look: "gearsword", series: "math", sp: { combo: true, multi: 0.4 } },
+  { id: "w_ryusei", type: "weapon", name: "りゅうせいの つえ", atk: 50, el: "star", price: 3000, gem: 5, mat: { hoshikake: 2, flask: 4, raitama: 3, mizutama: 3 }, unlock: 5, look: "comet", series: "sci", sp: { extra: 0.35 } },
+  { id: "w_tenka", type: "weapon", name: "てんかの 金印けん", atk: 50, el: "leaf", price: 3000, gem: 5, mat: { kinin: 2, magatama: 4, midotama: 6 }, unlock: 5, look: "katana", series: "soc", sp: { boss: 1.6, crit: 0.15 } },
+  { id: "w_niji", type: "weapon", name: "にじの せいけん", atk: 64, el: "star", price: 5000, gem: 10, mat: { niji: 1, ryuhitsu: 1, tsunobue: 1, compass: 1, hoshikake: 1, kinin: 1 }, unlock: "maou", look: "rainbowsword", sp: { crit: 0.3, pierce: true } },
+  { id: "a_kenja", type: "armor", name: "けんじゃの ローブ", def: 24, price: 2600, gem: 3, mat: { kotohana: 3, flask: 3, haguruma: 3 }, unlock: 5, color: "#3949ab", pattern: "robe", sp: { regen: 0.05 } },
+  { id: "h_kenja", type: "hat", name: "けんじゃの かんむり", hp: 60, price: 2600, gem: 3, mat: { kinsumi: 3, magatama: 3, kotohana: 3 }, unlock: 5, sp: { hint: true, mat: 0.2 } },
+  // ---- からだ ぜんぶが かわる いしょう（full） ----
+  { id: "a_bear", type: "armor", name: "くまの きぐるみ", def: 10, price: 700, mat: { kinoko: 6, donguri: 3 }, unlock: 2, full: "bear", color: "#a1714f", fun: "かわいい", sp: { regen: 0.04 } },
+  { id: "a_swim", type: "armor", name: "なつの みずぎ", def: 6, price: 600, mat: { kai: 6, mizutama: 3 }, unlock: 2, full: "swim", color: "#ff6f91", fun: "おもしろ", sp: { dodge: 0.15 } },
+  { id: "a_ninja2", type: "armor", name: "にんじゃ しょうぞく", def: 16, price: 1500, mat: { yogan: 5, midotama: 4 }, unlock: 3, full: "ninja", color: "#283593", fun: "かっこいい", sp: { dodge: 0.2 } },
+  { id: "a_knight", type: "armor", name: "ナイトの フルアーマー", def: 24, price: 2400, mat: { yuki: 6, hyou: 2, raitama: 3 }, unlock: 4, full: "knight", color: "#b0bec5", fun: "かっこいい", sp: { guard1: true, reflect: 0.1 } },
+  { id: "a_robot", type: "armor", name: "ロボット スーツ", def: 26, price: 3000, gem: 2, mat: { haguruma: 3, denki: 4, raitama: 4 }, unlock: 5, full: "robot", color: "#90a4ae", fun: "かっこいい", series: "math", sp: { guard1: true, endure: true } },
+  { id: "a_bolt", type: "armor", name: "いなずまの よろい", def: 22, price: 2800, gem: 2, mat: { kaku: 2, raitama: 6, flask: 2 }, unlock: 5, full: "bolt", bg: "bolt", color: "#ffca28", fun: "キラキラ", sp: { reflect: 0.25 } },
+  { id: "a_starry", type: "armor", name: "ほしぞらの ドレス", def: 22, price: 2800, gem: 2, mat: { yami: 2, hoshikake: 1, mizutama: 4 }, unlock: 5, full: "starry", bg: "stars", color: "#3949ab", fun: "キラキラ", sp: { regen: 0.04, dodge: 0.08 } },
+  // ---- アクセサリー（ほとんどは 見た目だけの コレクション） ----
+  { id: "x_none", type: "acc", name: "なし", price: 0, unlock: 0 },
+  { id: "x_tear", type: "acc", name: "なみだ目", price: 150, unlock: 0, acc: "tear", fun: "おもしろ" },
+  { id: "x_heart", type: "acc", name: "ハートの 目", price: 250, unlock: 0, acc: "heart", fun: "かわいい" },
+  { id: "x_guru", type: "acc", name: "ぐるぐる目", price: 200, unlock: 1, acc: "guru", fun: "おもしろ" },
+  { id: "x_mayu", type: "acc", name: "やる気の まゆげ", price: 250, unlock: 1, acc: "mayu", fun: "かっこいい" },
+  { id: "x_band", type: "acc", name: "ばんそうこう", price: 150, unlock: 1, acc: "band", fun: "おもしろ" },
+  { id: "x_kirame", type: "acc", name: "キラキラの 目", price: 0, drop: "write", acc: "kirame", fun: "キラキラ", sp: { coin: 0.1 } },
+  { id: "x_skate", type: "acc", name: "スケートボード", price: 600, unlock: 2, acc: "skate", fun: "かっこいい" },
+  { id: "x_broom", type: "acc", name: "まほうの ほうき", price: 1200, mat: { midotama: 3 }, unlock: 3, acc: "broom", fun: "キラキラ" },
+  { id: "x_rocket", type: "acc", name: "ロケット", price: 2000, mat: { hidama: 4, haguruma: 1 }, unlock: 4, acc: "rocket", fun: "かっこいい" },
+  { id: "x_cloud", type: "acc", name: "ふわふわ ぐも", price: 0, drop: "write", acc: "cloud", fun: "かわいい", sp: { petfast: true } },
+  { id: "x_whale", type: "acc", name: "くじら", price: 0, drop: "write", acc: "whale", fun: "かわいい", sp: { regen: 0.02 } },
+  { id: "x_horse", type: "acc", name: "おうまさん", price: 0, drop: "write", acc: "horse", fun: "おもしろ", sp: { egg: 1.5 } },
+  { id: "x_dragon", type: "acc", name: "ドラゴン", price: 0, drop: "write", acc: "dragon", fun: "かっこいい", sp: { crit: 0.1 } },
+  { id: "x_hearts", type: "acc", name: "ハートの オーラ", price: 800, unlock: 2, acc: "hearts", fun: "かわいい" },
+  { id: "x_fire", type: "acc", name: "ほのおの オーラ", price: 1500, mat: { hidama: 5 }, unlock: 3, acc: "fireaura", fun: "かっこいい" },
+  { id: "x_gold", type: "acc", name: "きんの オーラ", price: 0, drop: "write", acc: "gold", fun: "キラキラ", sp: { coin: 0.2 } },
+  { id: "x_cape", type: "acc", name: "えいゆうの マント", price: 0, drop: "maou", acc: "cape", fun: "かっこいい", sp: { crit: 0.1, mat: 0.1 } },
+  { id: "x_rainbow", type: "acc", name: "にじの オーラ", price: 0, drop: "maou", acc: "rainbow", fun: "キラキラ", sp: { coin: 0.3, regen: 0.03 } },
+  // ---- 見た目 重視の そうび（fun：おもしろ／かわいい／キラキラ／かっこいい） ----
+  { id: "w_ladle", type: "weapon", name: "おたま", atk: 7, el: "fire", price: 150, unlock: 0, look: "ladle", fun: "おもしろ", sp: { first: 2.5 } },
+  { id: "w_harisen", type: "weapon", name: "ハリセン", atk: 9, el: "none", price: 300, mat: { kinoko: 4 }, unlock: 1, look: "harisen", fun: "おもしろ", sp: { stun: 0.25 } },
+  { id: "w_bread", type: "weapon", name: "フランスパン", atk: 12, el: "none", price: 500, mat: { kai: 4 }, unlock: 2, look: "bread", fun: "おもしろ", sp: { drain: 0.2 } },
+  { id: "w_heart", type: "weapon", name: "ハートの ステッキ", atk: 16, el: "leaf", price: 600, mat: { kai: 3 }, unlock: 2, look: "heart", fun: "かわいい", sp: { coin: 0.3 } },
+  { id: "w_tuna", type: "weapon", name: "まぐろ ソード", atk: 22, el: "water", price: 900, mat: { yogan: 4, kai: 4 }, unlock: 3, look: "tuna", fun: "おもしろ", sp: { extra: 0.3 } },
+  { id: "w_starwand", type: "weapon", name: "ながれぼしの つえ", atk: 30, el: "star", price: 2000, gem: 3, mat: { yuki: 4 }, unlock: 4, look: "starwand", fun: "キラキラ" },
+  { id: "w_shine", type: "weapon", name: "きらめきの つるぎ", atk: 36, el: "thunder", price: 2400, mat: { denki: 6 }, unlock: 5, look: "shine", fun: "キラキラ", sp: { crit: 0.3 } },
+  { id: "a_pajama", type: "armor", name: "しましま パジャマ", def: 5, price: 300, mat: { kinoko: 4 }, unlock: 1, color: "#a0c4ff", pattern: "stripes", fun: "かわいい", sp: { regen: 0.05 } },
+  { id: "a_box", type: "armor", name: "ダンボール よろい", def: 9, price: 400, mat: { kai: 4 }, unlock: 2, color: "#c49a6c", pattern: "box", fun: "おもしろ", sp: { reflect: 0.15 } },
+  { id: "a_tux", type: "armor", name: "タキシード", def: 12, price: 900, mat: { yogan: 4 }, unlock: 3, color: "#263238", pattern: "tux", fun: "かっこいい", sp: { dodge: 0.12 } },
+  { id: "a_dress", type: "armor", name: "フリルの ドレス", def: 12, price: 900, mat: { yogan: 4 }, unlock: 3, color: "#ffb3d1", pattern: "frill", fun: "かわいい", sp: { regen: 0.03 } },
+  { id: "a_space", type: "armor", name: "うちゅうふく", def: 16, price: 1600, mat: { yuki: 5 }, unlock: 4, color: "#eceff1", pattern: "space", fun: "かっこいい", sp: { guard1: true } },
+  { id: "a_shine", type: "armor", name: "きらきら スーツ", def: 20, price: 2600, gem: 2, mat: { denki: 5 }, unlock: 5, color: "#d6a8ff", pattern: "sparkle", fun: "キラキラ", sp: { dodge: 0.1, reflect: 0.1 } },
+  { id: "h_party", type: "hat", name: "パーティー ぼうし", hp: 10, price: 200, unlock: 0, fun: "おもしろ", sp: { coin: 0.2 } },
+  { id: "h_chonmage", type: "hat", name: "ちょんまげ", hp: 15, price: 250, unlock: 1, fun: "おもしろ" },
+  { id: "h_bunny", type: "hat", name: "うさみみ", hp: 18, price: 400, unlock: 2, fun: "かわいい", sp: { petfast: true } },
+  { id: "h_glasses", type: "hat", name: "サングラス", hp: 15, price: 400, unlock: 2, fun: "かっこいい", sp: { mat: 0.15 } },
+  { id: "h_afro", type: "hat", name: "アフロ", hp: 25, price: 700, unlock: 3, fun: "おもしろ", sp: { egg: 2 } },
+  { id: "h_pumpkin", type: "hat", name: "かぼちゃ ぼうし", hp: 30, price: 1000, unlock: 4, fun: "かわいい" },
+  { id: "h_helmet", type: "hat", name: "うちゅう ヘルメット", hp: 40, price: 1600, unlock: 5, fun: "かっこいい" },
+  { id: "h_tiara", type: "hat", name: "きらきら ティアラ", hp: 45, price: 1800, gem: 2, unlock: 5, fun: "キラキラ", sp: { regen: 0.02 } },
+];
+
+// --- 毎日ミッション ---
+const MISSIONS = [
+  { id: "correct10", text: "問題に10回せいかいする", goal: 10, reward: { coin: 40 } },
+  { id: "nigate1", text: "ニガテモンスターを1体たおす", goal: 1, reward: { gem: 1 } },
+  { id: "starup3", text: "カードの★を3つアップする", goal: 3, reward: { coin: 50 } },
+];
+
+// --- なかま（タマゴからうまれる動物・モンスター） ---
+// r: レア度（0 ノーマル / 1 レア / 2 スーパーレア / 3 レジェンド）
+// ab: とくいわざの種類, pow: わざの強さ, cd: わざを使うまでに必要な正解の数
+// fusion: かけあわせでしか生まれないなかま
+const PETS = [
+  { id: "pyomaru", name: "ピヨまる", em: "🐥", el: "none", r: 0, ab: "heal", pow: 15, cd: 3, waza: "ピヨピヨのうた" },
+  { id: "nyanta", name: "ニャンタ", em: "🐱", el: "none", r: 0, ab: "attack", pow: 0.8, cd: 3, waza: "ねこパンチ" },
+  { id: "wanta", name: "ワンタ", em: "🐶", el: "none", r: 0, ab: "atkup", pow: 0.3, cd: 3, waza: "がんばれワンワン" },
+  { id: "pyonkichi", name: "ピョンキチ", em: "🐰", el: "leaf", r: 0, ab: "coin", pow: 6, cd: 2, waza: "コインさがし" },
+  { id: "kamessy", name: "カメッシー", em: "🐢", el: "water", r: 0, ab: "shield", pow: 0.5, cd: 4, waza: "こうらガード" },
+  { id: "kerosuke", name: "ケロスケ", em: "🐸", el: "water", r: 0, ab: "attack", pow: 0.8, cd: 3, waza: "みずでっぽう" },
+  { id: "nezumin", name: "ネズミン", em: "🐭", el: "thunder", r: 0, ab: "mat", pow: 1, cd: 4, waza: "そざい さがし" },
+  { id: "butappi", name: "ブタッピ", em: "🐷", el: "none", r: 0, ab: "egg", pow: 3, cd: 3, waza: "ぬくぬく タマゴあたため" },
+  { id: "hachimitsu", name: "ハチミツ", em: "🐝", el: "leaf", r: 0, ab: "poison", pow: 0.3, cd: 3, waza: "チクチクばり" },
+  { id: "konta", name: "コンタ", em: "🦊", el: "fire", r: 1, ab: "attack", pow: 1.5, cd: 3, waza: "きつねび" },
+  { id: "kumagoro", name: "クマゴロー", em: "🐻", el: "none", r: 1, ab: "shield", pow: 1, cd: 5, waza: "どっしりガード" },
+  { id: "hoho", name: "ホーホー", em: "🦉", el: "thunder", r: 1, ab: "hint", pow: 1, cd: 3, waza: "ちえのささやき" },
+  { id: "pandan", name: "パンダン", em: "🐼", el: "leaf", r: 1, ab: "heal", pow: 25, cd: 4, waza: "ささのはヒール" },
+  { id: "takorin", name: "タコリン", em: "🐙", el: "water", r: 1, ab: "stun", pow: 1, cd: 5, waza: "すみはき" },
+  { id: "penta", name: "ペンタ", em: "🐧", el: "water", r: 1, ab: "gauge", pow: 2, cd: 3, waza: "ペンギンダンス" },
+  { id: "saruta", name: "サルタ", em: "🐵", el: "leaf", r: 1, ab: "combo", pow: 3, cd: 3, waza: "ウキウキ おうえん" },
+  { id: "hebinu", name: "ヘビーヌ", em: "🐍", el: "leaf", r: 1, ab: "poison", pow: 0.5, cd: 4, waza: "どくの きば" },
+  { id: "koumori", name: "コウモリン", em: "🦇", el: "none", r: 1, ab: "drain", pow: 1.2, cd: 4, waza: "きゅうけつ アタック" },
+  { id: "gaou", name: "ガオウ", em: "🦁", el: "fire", r: 2, ab: "atkup", pow: 0.8, cd: 4, waza: "ライオンのほえごえ" },
+  { id: "yuniko", name: "ユニコ", em: "🦄", el: "star", r: 2, ab: "heal", pow: 40, cd: 4, waza: "にじいろヒール" },
+  { id: "draco", name: "ドラコ", em: "🐲", el: "fire", r: 2, ab: "attack", pow: 2.5, cd: 4, waza: "ドラゴンブレス" },
+  { id: "birihamu", name: "ビリハム", em: "🐹", el: "thunder", r: 2, ab: "stun", pow: 1, cd: 4, waza: "しびれほっぺ" },
+  { id: "ookami", name: "オオカミン", em: "🐺", el: "thunder", r: 2, ab: "multi", pow: 0.9, cd: 4, waza: "れんぞく かみつき" },
+  { id: "kujaku", name: "クジャクイン", em: "🦚", el: "star", r: 2, ab: "revive", pow: 50, cd: 1, waza: "ふっかつの はね" },
+  // ここから下は かけあわせ でしか生まれない
+  { id: "toramaru", name: "トラマル", em: "🐯", el: "fire", r: 1, ab: "attack", pow: 1.8, cd: 3, waza: "タイガークロー", fusion: true },
+  { id: "kujiran", name: "クジラン", em: "🐳", el: "water", r: 1, ab: "heal", pow: 35, cd: 4, waza: "しおふきシャワー", fusion: true },
+  { id: "washitaka", name: "ワシタカ", em: "🦅", el: "thunder", r: 1, ab: "attack", pow: 1.8, cd: 3, waza: "いなずまダイブ", fusion: true },
+  { id: "goriran", name: "ゴリラン", em: "🦍", el: "none", r: 1, ab: "atkup", pow: 0.6, cd: 3, waza: "ドラミング", fusion: true },
+  { id: "tokagen", name: "トカゲン", em: "🦎", el: "leaf", r: 1, ab: "stun", pow: 1, cd: 4, waza: "かくれんぼ", fusion: true },
+  { id: "koaran", name: "コアラン", em: "🐨", el: "leaf", r: 1, ab: "coin", pow: 15, cd: 2, waza: "おたからハンター", fusion: true },
+  { id: "niwatori", name: "ニワトリン", em: "🐔", el: "fire", r: 1, ab: "egg", pow: 6, cd: 3, waza: "コケコッコー あたため", fusion: true },
+  { id: "ushimo", name: "ウシモー", em: "🐮", el: "none", r: 1, ab: "barrier", pow: 2, cd: 5, waza: "モーモー バリア", fusion: true },
+  { id: "umataro", name: "ウマタロ", em: "🐴", el: "thunder", r: 1, ab: "gauge", pow: 3, cd: 3, waza: "いなずま ダッシュ", fusion: true },
+  { id: "hitsujin", name: "ヒツジン", em: "🐑", el: "none", r: 1, ab: "stun", pow: 1, cd: 4, waza: "ねむりの うた", fusion: true },
+  { id: "ahirun", name: "アヒルン", em: "🦆", el: "water", r: 1, ab: "coin", pow: 12, cd: 2, waza: "ガアガア コインひろい", fusion: true },
+  { id: "kanikani", name: "カニカニ", em: "🦀", el: "water", r: 1, ab: "reflect", pow: 0.8, cd: 4, waza: "はさみ カウンター", fusion: true },
+  { id: "yamaarashi", name: "ハリネズン", em: "🦔", el: "leaf", r: 1, ab: "reflect", pow: 1, cd: 4, waza: "トゲトゲ カウンター", fusion: true },
+  { id: "chocho", name: "チョウチョ", em: "🦋", el: "leaf", r: 1, ab: "heal", pow: 30, cd: 3, waza: "りんぷん ヒール", fusion: true },
+  { id: "sukanku", name: "スカンクン", em: "🦨", el: "none", r: 1, ab: "poison", pow: 0.7, cd: 4, waza: "くさい ガス", fusion: true },
+  { id: "kabao", name: "カバオ", em: "🦛", el: "water", r: 1, ab: "barrier", pow: 3, cd: 5, waza: "どっしり バリア", fusion: true },
+  { id: "sameddo", name: "サメッド", em: "🦈", el: "water", r: 2, ab: "attack", pow: 2.6, cd: 4, waza: "シャークバイト", fusion: true },
+  { id: "sasorin", name: "サソリン", em: "🦂", el: "fire", r: 2, ab: "poison", pow: 1.1, cd: 4, waza: "もうどくの しっぽ", fusion: true },
+  { id: "wanio", name: "ワニオ", em: "🐊", el: "leaf", r: 2, ab: "drain", pow: 1.8, cd: 4, waza: "ワニワニ かぶりつき", fusion: true },
+  { id: "manmos", name: "マンモス", em: "🦣", el: "none", r: 2, ab: "atkup", pow: 1.0, cd: 4, waza: "こおりの ほうこう", fusion: true },
+  { id: "zouzou", name: "ゾウゾウ", em: "🐘", el: "water", r: 2, ab: "barrier", pow: 3, cd: 4, waza: "はなみず シャワー", fusion: true },
+  { id: "kirin", name: "キリリン", em: "🦒", el: "leaf", r: 2, ab: "critnext", pow: 1, cd: 3, waza: "たかみの けんぶつ", fusion: true },
+  { id: "yukihyo", name: "ユキヒョウ", em: "🐆", el: "water", r: 2, ab: "multi", pow: 1.3, cd: 4, waza: "ゆきの れんげき", fusion: true },
+  { id: "flamingo", name: "フラミンゴ", em: "🦩", el: "fire", r: 2, ab: "revive", pow: 70, cd: 1, waza: "ほのおの ふっかつ", fusion: true },
+  { id: "tiranon", name: "ティラノン", em: "🦖", el: "fire", r: 2, ab: "attack", pow: 3.2, cd: 4, waza: "ダイナソーバイト", fusion: true },
+  { id: "stego", name: "ステゴン", em: "🦕", el: "leaf", r: 2, ab: "barrier", pow: 4, cd: 4, waza: "こうらの とりで", fusion: true },
+  { id: "dodo", name: "ドードー", em: "🦤", el: "none", r: 2, ab: "chgel", pow: 1, cd: 5, waza: "ふしぎな まほう", fusion: true },
+  { id: "orca", name: "オルカン", em: "🐋", el: "water", r: 3, ab: "multi", pow: 1.8, cd: 4, waza: "だいかいしょう", fusion: true },
+  { id: "ryuou", name: "リュウオウ", em: "🐉", el: "star", r: 3, ab: "attack", pow: 4.5, cd: 4, waza: "てんくうのいかずち", fusion: true },
+];
+
+// かけあわせのレシピ（順番は関係なし）。かけあわせで うまれた なかまどうしも かけあわせられる
+const RECIPES = [
+  [["nyanta", "konta"], "toramaru"],
+  [["kamessy", "takorin"], "kujiran"],
+  [["pyomaru", "hoho"], "washitaka"],
+  [["wanta", "kumagoro"], "goriran"],
+  [["kerosuke", "pandan"], "tokagen"],
+  [["pyonkichi", "penta"], "koaran"],
+  [["pyomaru", "butappi"], "niwatori"],
+  [["butappi", "wanta"], "ushimo"],
+  [["pyonkichi", "nezumin"], "umataro"],
+  [["nyanta", "pyomaru"], "hitsujin"],
+  [["pyomaru", "kerosuke"], "ahirun"],
+  [["kamessy", "kerosuke"], "kanikani"],
+  [["nezumin", "kumagoro"], "yamaarashi"],
+  [["hachimitsu", "pyonkichi"], "chocho"],
+  [["nezumin", "hebinu"], "sukanku"],
+  [["butappi", "kujiran"], "kabao"],
+  [["takorin", "kerosuke"], "sameddo"],
+  [["hachimitsu", "kanikani"], "sasorin"],
+  [["tokagen", "kamessy"], "wanio"],
+  [["kumagoro", "goriran"], "manmos"],
+  [["ushimo", "kumagoro"], "zouzou"],
+  [["umataro", "hebinu"], "kirin"],
+  [["toramaru", "ookami"], "yukihyo"],
+  [["ahirun", "kujaku"], "flamingo"],
+  [["kumagoro", "draco"], "tiranon"],
+  [["tiranon", "kamessy"], "stego"],
+  [["ahirun", "niwatori"], "dodo"],
+  [["sameddo", "kujiran"], "orca"],
+  [["draco", "gaou"], "ryuou"],
+];
+
+// レア度ごとの情報（need: かえるまでに必要な正解の数）
+const RARITY = [
+  { name: "ノーマル", stars: "★", need: 20, egg: ["#ffffff", "#ffb3d1"] },
+  { name: "レア", stars: "★★", need: 35, egg: ["#d6ecff", "#4aa8ff"] },
+  { name: "スーパーレア", stars: "★★★", need: 55, egg: ["#fff3b0", "#ffb800"] },
+  { name: "レジェンド", stars: "★★★★", need: 80, egg: ["#f3e0ff", "#c77dff"] },
+];
+
+// とくいわざの説明（pow は レベルで強くなる）
+const ABILITY = {
+  heal: { icon: "💚", name: "かいふく", desc: (p) => `たいりょくを ${p}% かいふく` },
+  attack: { icon: "💥", name: "こうげき", desc: (p) => `てきに こうげき（つよさ ${Math.round(p * 100)}%）` },
+  multi: { icon: "⚡", name: "れんぞく", desc: (p) => `3回 れんぞくで こうげき（1回 ${Math.round(p * 40)}%）` },
+  drain: { icon: "🩸", name: "きゅうしゅう", desc: (p) => `こうげき（${Math.round(p * 100)}%）して その半分 かいふく` },
+  poison: { icon: "☠️", name: "どく", desc: (p) => `てきを どくに する（3回 ${Math.round(p * 100)}%の ダメージ）` },
+  atkup: { icon: "💪", name: "パワーアップ", desc: (p) => `つぎの 2回の こうげきが ${Math.round(p * 100)}% アップ` },
+  critnext: { icon: "🎯", name: "ひっちゅう", desc: () => "つぎの こうげきが かならず かいしん（2ばい）" },
+  combo: { icon: "🔥", name: "コンボ", desc: (p) => `コンボを ${p} ふやす` },
+  coin: { icon: "🪙", name: "コイン", desc: (p) => `コインを ${p}まい ひろってくる` },
+  mat: { icon: "🧺", name: "そざい", desc: () => "ステージの そざいを 1つ 見つけてくる" },
+  egg: { icon: "🥚", name: "タマゴ", desc: (p) => `タマゴを ${p}問ぶん そだてる` },
+  shield: { icon: "🛡️", name: "ガード", desc: (p) => (p >= 1 ? "てきの こうげきを 1回 ふせぐ" : `てきの こうげきを ${Math.round(p * 100)}% へらす`) },
+  barrier: { icon: "🔰", name: "バリア", desc: (p) => `てきの こうげき ${p}回ぶんを 半分にする` },
+  reflect: { icon: "🪞", name: "カウンター", desc: (p) => `つぎの てきの こうげきの ${Math.round(p * 100)}% を はね返す` },
+  stun: { icon: "💫", name: "ストップ", desc: () => "てきの うごきを 1ターン とめる" },
+  hint: { icon: "💡", name: "ヒント", desc: () => "まちがいの 答えを 1つ けしてくれる" },
+  gauge: { icon: "✨", name: "ゲージ", desc: (p) => `ひっさつゲージを ${p} ためる` },
+  revive: { icon: "🪶", name: "ふっかつ", desc: (p) => `たおれたとき 1回だけ ${p}% で ふっかつ（いつでも）` },
+  chgel: { icon: "🔄", name: "ぞくせいチェンジ", desc: () => "てきの ぞくせいを、いまの ぶきが ばつぐんに なる ぞくせいに かえる" },
+};
+
+// --- かけあわせの ヒントに 使う「なかまの ようす」 ---
+const TRAIT = {
+  pyomaru: "小さな ひよこ", nyanta: "ねこの なかま", wanta: "いぬの なかま", pyonkichi: "ぴょんぴょん はねる 子",
+  kamessy: "こうらの ある 子", kerosuke: "みずべで ケロケロ なく 子", nezumin: "ちいさな ネズミ", butappi: "まるい ぶた",
+  hachimitsu: "花の みつが すきな 虫", konta: "ほのおの けもの", kumagoro: "力もちの 子", hoho: "もの知りな とり",
+  pandan: "ささが だいすきな 子", takorin: "あしが たくさん ある 子", penta: "さむい 国の とり", saruta: "木のぼり 上手",
+  hebinu: "にょろにょろ した 子", koumori: "よるの 空の 子", gaou: "百じゅうの 王", yuniko: "つのの ある 子",
+  draco: "りゅうの 子ども", birihamu: "ほっぺが ビリビリ する 子", ookami: "とおぼえ する 子", kujaku: "きれいな はねの とり",
+  toramaru: "しまもようの けもの", kujiran: "うみの 大きな 子", washitaka: "空の ハンター", goriran: "むねを たたく 子",
+  tokagen: "かくれんぼ 上手", koaran: "木に しがみつく 子", niwatori: "あさ はやく なく とり", ushimo: "もうもう なく 子",
+  umataro: "はしるのが はやい 子", hitsujin: "もこもこの 子", ahirun: "ガアガア なく 子", kanikani: "はさみを もつ 子",
+  yamaarashi: "トゲトゲの 子", chocho: "ひらひら とぶ 子", sukanku: "くさい においの 子", kabao: "大きな 口の 子",
+  sameddo: "うみの ハンター", sasorin: "どくの しっぽの 子", wanio: "大きな 口の ハンター", manmos: "大むかしの けもの",
+  zouzou: "はなが ながい 子", kirin: "首が ながい 子", yukihyo: "ゆきの けもの", flamingo: "かた足で 立つ とり",
+  tiranon: "きょうりゅう", stego: "せなかに いたの ある きょうりゅう", dodo: "まぼろしの とり", orca: "うみの 王",
+  ryuou: "でんせつの りゅう",
+};
+// ヒントを 出さない「ひみつの くみあわせ」
+const SECRET_RECIPES = ["yukihyo", "flamingo", "stego", "dodo", "orca", "ryuou"];
