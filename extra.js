@@ -59,25 +59,34 @@ function maouPool() {
 function maouEnemies(ch) {
   const mk = (o) => Object.assign({ phase: 0 }, o);
   if (ch.maou === 1) return [
-    mk({ name: "まおうの しもべ ゴーレム", hp: 300, atk: 22, el: "leaf", shape: "rock", color: ELEMENTS.leaf.color, boss: false, imm: "none" }),
-    mk({ name: "まおうの しもべ まぼろし", hp: 300, atk: 22, el: pick(ELS4), rand: true, shape: "ghost", color: "#b388ff", boss: false }),
-    mk({ name: "まおう ドンヨリ", hp: 950, atk: 27, el: "fire", shape: "boss", color: "#5e35b1", boss: true, fast: true, phases: ["fire", "water", "thunder"] }),
+    mk({ name: "まおうの しもべ ゴーレム", hp: 520, atk: 44, el: "leaf", shape: "rock", color: ELEMENTS.leaf.color, boss: false, imm: "none" }),
+    mk({ name: "まおうの しもべ まぼろし", hp: 520, atk: 44, el: pick(ELS4), rand: true, shape: "ghost", color: "#b388ff", boss: false }),
+    mk({ name: "まおう ドンヨリ", hp: 2600, atk: 52, el: "fire", shape: "boss", color: "#5e35b1", boss: true, fast: true, phases: ["fire", "water", "thunder"] }),
   ];
   return [
-    mk({ name: "まおう ドンヨリ（ふっかつ）", hp: 2000, atk: 54, el: "water", shape: "boss", color: "#4527a0", boss: false, fast: true, phases: ["water", "leaf", "fire"] }),
-    mk({ name: "しんの まおう カオスドン", hp: 4200, atk: 60, el: "thunder", shape: "boss", color: "#1a0f3d", boss: true, fast: true, phases: ["thunder", "fire", "leaf"] }),
+    mk({ name: "まおう ドンヨリ（ふっかつ）", hp: 1800, atk: 58, el: "water", shape: "boss", color: "#4527a0", boss: false, fast: true, phases: ["water", "leaf", "fire"] }),
+    mk({ name: "しんの まおう カオスドン", hp: 4000, atk: 64, el: "thunder", shape: "boss", color: "#1a0f3d", boss: true, fast: true, phases: ["thunder", "fire", "leaf"] }),
   ];
 }
-// 地図に 出す まおうの ボタン
+// しんの まおうの しろが あらわれた ことを 1回だけ しらせる
+function maou2Reveal() {
+  if (S.maou2Seen || !maouOpen(2)) return;
+  S.maou2Seen = 1; save();
+  snd("special");
+  modal(`<div class="mtitle">🌌 なにかが あらわれた…！</div><div class="bigicon">🌌</div>
+    <p>やみの おくに <b>「しんの まおうの しろ」</b>が すがたを あらわした！</p>
+    <p class="small">ぼうけんの 画面の いちばん下を 見てみよう</p>
+    <button class="big-btn primary" onclick="closeModal()">いどむ じゅんびを する！</button>`);
+}
+// 地図に 出す まおうの ボタン（ひらく じょうけんは ヒントだけ）
 function maouButton() {
   const o1 = maouOpen(1), o2 = maouOpen(2), c1 = stStars("z1-4") > 0;
-  const prog = WORLDS.filter((w) => activeChapters(w.id).length && (w.id !== "sci" || audioOK())).map((w) => `${w.icon}${Math.min(bossCount(w.id), maouNeed(w.id))}/${maouNeed(w.id)}`).join(" ");
   let h = `<button class="stage maou ${o1 ? "" : "locked"}" ${o1 ? `onclick="startBattle('z1-4')"` : ""}>
-    <span class="snum">🌑</span><span class="sinfo"><b>まおうの しろ</b><small>${o1 ? (c1 ? `⭐${stStars("z1-4")}　もういちど いどめるよ` : "5つの 国の ちからを ためされる…") : `どの 国でも ボスを 5体 たおすと ひらく<br>${prog}`}</small></span><span class="sstate">${o1 ? "▶" : "🔒"}</span></button>`;
-  if (c1) {
-    const left = WORLDS.filter((w) => activeChapters(w.id).length && (w.id !== "sci" || audioOK())).map((w) => `${w.icon}${bossCount(w.id)}/${activeChapters(w.id).length}`).join(" ");
-    h += `<button class="stage maou2 ${o2 ? "" : "locked"}" ${o2 ? `onclick="startBattle('z2-4')"` : ""}>
-      <span class="snum">🌌</span><span class="sinfo"><b>しんの まおうの しろ</b><small>${o2 ? "さいごの たたかい…！" : `すべての 国の 章を クリアすると ひらく<br>${left}`}</small></span><span class="sstate">${o2 ? "▶" : "🔒"}</span></button>`;
+    <span class="snum">🌑</span><span class="sinfo"><b>まおうの しろ</b><small>${o1 ? (c1 ? `⭐${stStars("z1-4")}　もういちど いどめるよ` : "5つの 国の ちからを ためされる…") : "いろいろな 国で ボスを たおしていくと…？"}</small></span><span class="sstate">${o1 ? "▶" : "🔒"}</span></button>`;
+  // しんの まおうの しろは、ひらくまで ひみつ（あらわれたら 地図で おしらせ）
+  if (o2) {
+    h += `<button class="stage maou2" onclick="startBattle('z2-4')">
+      <span class="snum">🌌</span><span class="sinfo"><b>しんの まおうの しろ</b><small>さいごの たたかい…！</small></span><span class="sstate">▶</span></button>`;
   }
   return h;
 }
@@ -208,7 +217,7 @@ function makeWriteQ(id) {
   const [word, reading] = pick(K.w.filter(([w]) => w.includes(K.k)));
   return { id, kind: "write", k: K.k, word, reading,
     explain: `<span class="wk">${K.k}</span>${esc(word)}（${reading}）`,
-    head: `<div class="qlabel">✍️ □の 漢字を 書こう</div><div class="qruby">${reading}</div><div class="qword fsm">${esc(word).replace(K.k, '<span class="blank">□</span>')}</div>` };
+    head: `<div class="qlabel">✍️ □の 漢字を 書こう</div><div class="qruby">${reading}</div><div class="qword fsm">${esc(word).split(K.k).join('<span class="blank">□</span>')}</div>` };
 }
 function showWrite() {
   const q = B.q;

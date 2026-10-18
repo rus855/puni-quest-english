@@ -3,7 +3,7 @@ const fs = require("fs"), path = require("path"), vm = require("vm");
 const dir = process.argv[2];
 const ctx = { console, window: {}, document: { addEventListener() {} }, navigator: {}, setTimeout, Math, JSON, Object, Array, String, Number, Set, Promise };
 vm.createContext(ctx);
-const files = ["data.js", "world.js", "e_vocab1.js", "e_vocab2.js", "eigo.js", "e_gram.js", "e_idiom.js", "e_listen.js", "e_talk.js"];
+const files = ["data.js", "world.js", "e_vocab1.js", "e_vocab2.js", "e_vsent1.js", "e_vsent2.js", "eigo.js", "e_gram.js", "e_gram2.js", "e_idiom.js", "e_idiom2.js", "e_listen.js", "e_listen2.js", "e_talk.js", "e_talk2.js"];
 for (const f of files) vm.runInContext(fs.readFileSync(path.join(dir, f), "utf8") + `\n;globalThis.__ok=1;`, ctx, { filename: f });
 vm.runInContext(`
 var out = [];

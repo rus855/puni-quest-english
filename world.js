@@ -14,12 +14,23 @@ const WORLDS = [
 // ---------- 問題バンク（ことば・理科・社会・算数の知識問題） ----------
 // BANK[id] = { w: 国, q: 問題, a: 正解, ng: まちがい, ex: 解説, t: カードの名前, type: choice/order/input, svg: 図 }
 const BANK = {};
-function bank(w, chId, list) {
+function bank(w, chId, list, offset = 0) {
   return list.map((it, i) => {
-    const id = `q:${chId}-${i + 1}`;
+    const id = `q:${chId}-${offset + i + 1}`;
     BANK[id] = Object.assign({ w, ch: chId, type: it.order ? "order" : it.spell !== undefined ? "spell" : it.input !== undefined ? "input" : "choice" }, it);
     return id;
   });
+}
+
+// 章に 問題を 追加する（前の 問題の 番号は かえない。あたらしい 問題は 章の 中に まんべんなく まぜる）
+function addQs(w, chId, list) {
+  const ch = CHAPTERS.find((c) => c.id === chId);
+  const offset = Object.keys(BANK).filter((k) => k.startsWith(`q:${chId}-`)).length;
+  const nw = bank(w, chId, list, offset), old = ch.items, merged = [];
+  let j = 0;
+  old.forEach((o, i) => { merged.push(o); const to = Math.round(((i + 1) * nw.length) / old.length); while (j < to) merged.push(nw[j++]); });
+  while (j < nw.length) merged.push(nw[j++]);
+  ch.items = merged;
 }
 
 // ---------- 算数の計算問題（その場で数字をつくる） ----------
@@ -99,7 +110,9 @@ function prepareChapters() {
       // 区切り（sec）が あるときは、区切りの 中で ティアを きめる
       const grp = list.filter((c) => c.sec === ch.sec), j = grp.indexOf(ch);
       ch.idx = i; ch.no = j + 1;
-      ch.tier = Math.min(6, 1 + Math.floor((j * 6) / grp.length));
+      // 中1〜中3の エリアは やさしめ（中1：ティア1〜2、中2：1〜3、中3：1〜4）。英語版は どの 国も 学年で わけている
+      const g = ch.g || 0, top = { 1: 2, 2: 3, 3: 4 }[g] || 6;
+      ch.tier = Math.min(top, 1 + Math.floor((j * top) / grp.length));
       const seed = i + w.id.length * 3;
       ch.els = [ELS4[seed % 4], ELS4[(seed + 1 + (i % 2)) % 4]];
       ch.last = i === list.length - 1;
@@ -113,7 +126,7 @@ function stageItems(ch, n) {
   const all = ch.items.filter(itemOn);
   const items = all.length >= 3 ? all : ch.items.slice();
   if (n >= 3) return items;
-  const k = Math.ceil(items.length / 3);
+  const k = Math.max(Math.ceil(items.length / 3), Math.min(10, items.length)); // ステージ1でも 10種類 以上
   const part = items.slice(0, n * k);
   return part.length >= 3 ? part : items.slice();
 }
@@ -134,6 +147,9 @@ function makeEnemy(ch, el, boss, n, k) {
     hp: Math.round((boss ? T.bhp : T.hp) * (0.95 + ((n + k) % 3) * 0.05)), atk: boss ? T.batk : T.atk,
     el, shape, color: ELEMENTS[el === "rand" ? "star" : el].color, boss,
   };
+  // 5年生・6年生の 強い てき（hiken.js）。ボスは ひけんで ないと やぶれない バリアを もつ
+  const H = typeof hardStats === "function" ? hardStats(ch, boss) : null;
+  if (H) { e.hp = Math.round(H.hp * (0.95 + ((n + k) % 3) * 0.05)); e.atk = H.atk; if (boss) e.barrier = ch.w; }
   if (el === "rand") { e.name = "まぼろしスライム"; e.shape = "blob"; e.color = "#b388ff"; }
   return e;
 }
@@ -298,10 +314,12 @@ const stageName = (ch, n) => (CH_STAGE_NAMES[ch.id] || STAGE_NAMES[ch.w] || STAG
 
 // ステージの情報（バトルで つかう）
 function stageInfo(ch, n) {
+  // ごほうび（コイン・そざい）は 強さに 合わせる（5・6年生の 強い 章は ティア5・6 なみ）
+  const rt = Math.max(ch.tier, typeof chHard === "function" ? chHard(ch) : 0);
   return {
-    key: `${ch.id}-${n}`, ch, n, tier: ch.tier, id: ch.tier,
-    name: stageName(ch, n), bg: TBG[ch.tier],
-    mat: TMAT[ch.tier][0], bmat: TMAT[ch.tier][1], final: ch.last && n === 4,
+    key: `${ch.id}-${n}`, ch, n, tier: ch.tier, id: ch.tier, rt,
+    name: stageName(ch, n), bg: TBG[rt],
+    mat: TMAT[rt][0], bmat: TMAT[rt][1], final: ch.last && n === 4,
   };
 }
 
@@ -315,8 +333,15 @@ function chapterOpen(ch) {
   // リスニングの 章は 音が 出せる ときだけ
   if (ch.listen && !audioOK()) return false;
   const list = activeChapters(ch.w).filter((c) => c.sec === ch.sec), i = list.indexOf(ch);
-  if (i <= 0 || stStars(`${ch.id}-1`) > 0) return true;
+  if (stStars(`${ch.id}-1`) > 0) return true;
+  if (i <= 0) return !kanjiHighLocked(ch);
   return chapterDone(list[i - 1]);
+}
+// 高2・高3の エリア：その国の 高1エリアの ボスを 1体 たおすまで とじている
+function kanjiHighLocked(ch) {
+  if (!["a5", "a6"].includes(ch.sec)) return false;
+  const a4 = activeChapters(ch.w).filter((c) => c.sec === "a4");
+  return a4.length > 0 && !a4.some(chapterDone);
 }
 const stageOpen = (ch, n) => chapterOpen(ch) && (n === 1 || !!ch.maou || (window.PQ_DEBUG && window.PQ_OPEN) || stStars(`${ch.id}-${n - 1}`) > 0);
 const chapterDone = (ch) => stStars(`${ch.id}-4`) > 0;
@@ -354,7 +379,7 @@ function map() {
       <p>てきには <b>ぞくせい</b> があって、あいしょうの いい ぶきなら <b>2ばい</b>！<br>てきを たおすと <b>そざい</b> が 手に はいって、ショップで そうびが つくれるよ。</p>
       <p>⭐は ステージの できばえ（ノーミスで ⭐3つ）。</p>
       <button class="big-btn primary" onclick="closeModal()">わかった！</button>`);
-  }
+  } else if (typeof maou2Reveal === "function") maou2Reveal();
 }
 
 // その国で つぎに 遊ぶ章：区切りごとの いちばん手前の 未クリアの章のうち、進めている 区切りを 優先
@@ -401,7 +426,7 @@ function openWorld(w, sec) {
       const els = ch.els.map((e) => ELEMENTS[e].icon).join("");
       return `<button class="stage ${open ? "" : "locked"} ${ch.tier === 6 ? "sfinal" : ""}" ${open ? `onclick="openChapter('${ch.id}')"` : ""} style="--b1:${TBG[ch.tier][0]};--b2:${TBG[ch.tier][1]}">
         <span class="snum">${ch.icon || i + 1}</span>
-        <span class="sinfo"><b>${i + 1}. ${ch.name}</b><small>${open ? `てき ${els}${ch.tier >= 2 ? "❓" : ""}　そざい ${MATS[TMAT[ch.tier][0]].em}${MATS[TMAT[ch.tier][1]].em}　⭐${st}/12` : ch.listen && !audioOK() ? "🎵 BGMを オンに すると 遊べるよ" : "まえの 章を クリアしよう"}</small></span>
+        <span class="sinfo"><b>${i + 1}. ${ch.name}</b><small>${open ? `てき ${els}${ch.tier >= 2 ? "❓" : ""}　そざい ${MATS[TMAT[stageInfo(ch, 1).rt][0]].em}${MATS[TMAT[stageInfo(ch, 1).rt][1]].em}　⭐${st}/12` : ch.listen && !audioOK() ? "🎵 BGMを オンに すると 遊べるよ" : kanjiHighLocked(ch) ? "こだまの山の ボスを 1たい たおすと ひらく" : "まえの 章を クリアしよう"}</small></span>
         <span class="sstate">${!open ? "🔒" : done ? "👑" : "▶"}</span></button>`;
     }).join("") + writeButton(curWorld, curSec[curWorld]) : `<div class="chhead" style="--b1:#fff;--b2:#f3ecff"><div class="bigicon">💤</div><b>いまは おやすみ中</b><small>おうちの人の せっていで、この国の 章は お休みに なっているよ</small></div>`}</div>`, "bg-map");
 }

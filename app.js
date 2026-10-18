@@ -288,6 +288,7 @@ function hatSVG(h, color, dark) {
 }
 
 function weaponSVG(w) {
+  if (w.look === "hiken" || w.look === "hikenfinal") return hikenSVG(w);
   if (w.look) return lookSVG(w);
   const big = w.atk >= 28;
   const glow = big ? `<circle cx="0" cy="-74" r="26" fill="${ELEMENTS[w.el].color}" opacity=".25"/>` : "";
@@ -728,6 +729,7 @@ function nextEnemy() {
   renderBattle();
   nextQ();
   if (e.rand) setTimeout(() => toast(`❓ ${e.name}は ${ELEMENTS[e.el].icon}${ELEMENTS[e.el].name} だった！`), 300);
+  if (e.barrier) setTimeout(() => toast("🛡️ ふしぎな バリアで まもられている！ この国の ひけんなら やぶれるかも…"), 400);
 }
 
 function renderBattle() {
@@ -764,7 +766,7 @@ function updBars() {
   $("ehptxt").textContent = `${Math.max(0, e.hp)} / ${e.max}`;
   $("phpbar").style.width = Math.max(0, (B.php / mx) * 100) + "%";
   $("phptxt").textContent = `❤️ ${Math.max(0, B.php)} / ${mx}`;
-  const wk = weakOf(e.el), immTxt = e.imm ? ` <span class="imm">きかない<b>${e.imm === "none" ? "・" : ELEMENTS[e.imm].icon}</b></span>` : "";
+  const wk = weakOf(e.el), immTxt = (e.imm ? ` <span class="imm">きかない<b>${e.imm === "none" ? "・" : ELEMENTS[e.imm].icon}</b></span>` : "") + (e.barrier ? ` <span class="imm">🛡️バリア</span>` : "");
   $("eweak").innerHTML = e.el === "none" ? `ぞくせい なし${immTxt}` : `${ELEMENTS[e.el].icon} じゃくてん<b>${wk ? ELEMENTS[wk].icon : ""}</b>${immTxt}`;
   $("eturn").innerHTML = `⚔️ あと<b>${e.turn}</b>`;
   $("combo").textContent = B.combo >= 2 ? `${B.combo} コンボ!` : "";
@@ -787,7 +789,7 @@ function nextQ(special = false) {
     const rv = B.st.ch ? reviewPool(B.st.ch) : [];
     id = rv.length && Math.random() < 0.25 ? pickId(rv, B.recent) : pickId(B.pool, B.recent);
   }
-  B.recent = [id, ...B.recent].slice(0, Math.min(4, Math.max(0, B.pool.length - 2)));
+  B.recent = [id, ...B.recent].slice(0, Math.min(8, Math.max(0, Math.floor(B.pool.length * 0.6)))); // 最近 出た 問題は しばらく 出にくく
   // 必殺技：公式なら「正しい公式は？」、それ以外は ふつうの問題で 3ばい
   B.q = B.st.ch && B.st.ch.write && id.startsWith("v:") ? makeVocabQ(id, "vdojo") : makeQ(id, special && id.startsWith("f:") ? "ffill" : null);
   B.q.special = special;
@@ -975,6 +977,9 @@ async function attack(mult, skillName) {
   let x = effNow(w.el);
   // つらぬき：いまひとつ・きかない を むしする
   if (sp.pierce && x < 1) x = 1;
+  // ひけん：その国の ボスには いまひとつ・きかないを むしする
+  const hch = B.st && B.st.ch;
+  if (sp.world && e.boss && hch && !hch.maou && (sp.world === "all" || sp.world === hch.w) && x < 1) x = 1;
   anim($("pchr"), "atk");
   if (skillName) fxText(skillName + "！", "skill");
   await wait(220);
@@ -989,6 +994,12 @@ async function attack(mult, skillName) {
     const crit = B.critNext || (sp.crit && Math.random() < sp.crit);
     if (crit) { d *= 2; B.critNext = false; tag = "<small>かいしん！</small>"; cls = "dmg weak"; }
     if (sp.boss && e.boss) d *= sp.boss;
+    // ひけん：その国の てきに 1.5ばい・とっこう属性に 1.5ばい・まおうに 2ばい。5・6年生の ボスの バリアは ひけんで ないと ダメージ 半分
+    const ch = B.st && B.st.ch;
+    if (sp.world && ch && !ch.maou && (sp.world === "all" || sp.world === ch.w)) d *= 1.5;
+    if (sp.tok && e.el === sp.tok) d *= 1.5;
+    if (sp.maou && ch && ch.maou) d *= sp.maou;
+    if (e.barrier && !(sp.world && (sp.world === "all" || sp.world === e.barrier))) { d *= sp.bar || 0.5; if (!crit) { tag = "<small>バリア…</small>"; cls = "dmg resist"; } }
     if (sp.exec && e.hp < e.max * 0.25) { d *= 2; tag = "<small>とどめ！</small>"; }
     if (sp.first && !e.hitOnce) { d *= sp.first; tag = "<small>せんせい！</small>"; }
     e.hitOnce = true;
@@ -1087,16 +1098,22 @@ async function enemyDown() {
     else { S.coins += 15; B.coins += 15; fxText("🪙 +15", "card"); }
     if (Math.random() < 0.05) dropEgg(giveEgg(0) ? 0 : "full");
   } else {
-    const c = 5 * B.st.tier;
+    const c = 5 * (B.st.rt || B.st.tier);
     S.coins += c; B.coins += c;
     fxText(`🪙 +${c}`, "card");
+    // ひけん・ひほう
+    const hk = hikenDrop(e);
+    if (hk) {
+      B.hk = Object.assign(B.hk || {}, hk);
+      setTimeout(() => { snd("special"); fxText(hk.sword ? "🗡️ ひみつの けん！？" : `${MATS[hk.hihou].em} ひほう！？`, "skill"); }, 700);
+    }
     // そざい：ボスは かならず、ふつうの てきは ときどき。国の そざいも 出る
     const bonus = hsp().mat || 0;
     const got = e.boss ? [B.st.bmat, B.st.mat] : Math.random() < 0.5 + bonus ? [B.st.mat] : [];
     const wm = WORLD_MAT[B.st.ch.w];
     if (wm && (e.boss || Math.random() < 0.25 + bonus)) got.push(wm);
     // むずかしい 章ほど レアな そざいが 出る
-    const t = B.st.tier, wr = WORLD_RARE[B.st.ch.w];
+    const t = B.st.rt || B.st.tier, wr = WORLD_RARE[B.st.ch.w];
     if (wr) {
       if (Math.random() < (e.boss ? (t >= 2 ? 0.15 + 0.1 * t : 0) : t >= 3 ? 0.04 * t - 0.08 : 0) + bonus / 2) got.push(wr[0]);
       if (Math.random() < (e.boss ? (t >= 4 ? 0.08 * (t - 3) : 0) : t >= 5 ? 0.03 : 0)) got.push(wr[1]);
@@ -1108,7 +1125,7 @@ async function enemyDown() {
     if (got.length) setTimeout(() => fxText(`${got.map((m) => MATS[m].em).join("")} ゲット！`, "card"), 450);
     // タマゴ：3章ごとの ボスを はじめて たおすと かならず。ほかは ときどき
     const sure = e.boss && !stStars(B.sid) && (B.st.ch.idx % 3 === 2 || !!B.st.ch.maou);
-    const r = rollEgg(B.st.tier, e.boss, sure);
+    const r = rollEgg(B.st.rt || B.st.tier, e.boss, sure);
     if (r !== null) dropEgg(r);
   }
   save();
@@ -1168,11 +1185,11 @@ function stageClear() {
     S.stClear = S.stClear || {}; S.tierClear = S.tierClear || {};
     S.stClear[B.sid] = Math.max(prev, stars);
     if (first) {
-      const bonus = (st.n === 4 ? 25 : 8) * st.tier;
+      const bonus = (st.n === 4 ? 25 : 8) * (st.rt || st.tier);
       S.coins += bonus; B.coins += bonus;
-    } else { const c = 5 * st.tier; S.coins += c; B.coins += c; }
+    } else { const c = 5 * (st.rt || st.tier); S.coins += c; B.coins += c; }
     // ⭐3つを はじめて とったら ごほうび
-    if (stars === 3 && prev < 3) { const g = 10 * st.tier; S.coins += g; B.coins += g; }
+    if (stars === 3 && prev < 3) { const g = 10 * (st.rt || st.tier); S.coins += g; B.coins += g; }
     if (st.ch.write || st.ch.maou) treasure = extraRewards(st, first, stars, prev);
     if (st.n === 4 && first && !st.ch.maou && !treasure) {
       // 章クリア：この強さの そうびが ショップに ならぶ
@@ -1180,7 +1197,7 @@ function stageClear() {
       const cand = ITEMS.filter((x) => x.type === "hat" && !x.gem && x.price > 0 && !S.owned.includes(x.id) && unlocked(x));
       if (st.final) { S.gems += 3; B.gems += 3; treasure = { icon: "💎", text: "ほうせき ×3" }; }
       else if (cand.length && Math.random() < 0.3) { const it = cand[0]; S.owned.push(it.id); treasure = { icon: "🎩", text: `${it.name} を てにいれた！`, item: it.id }; }
-      else { const c = 15 * st.tier; S.coins += c; B.coins += c; treasure = { icon: "🪙", text: `コイン +${c}` }; }
+      else { const c = 15 * (st.rt || st.tier); S.coins += c; B.coins += c; treasure = { icon: "🪙", text: `コイン +${c}` }; }
     }
   }
   save();
@@ -1191,8 +1208,9 @@ function stageClear() {
     <div class="treasure hidden" id="treasure"><div class="bigicon">${treasure.icon}</div><b>${treasure.text}</b>${treasure.item ? `<div class="hero xs">${charSVG({ ...S.eq, [itemById(treasure.item).type]: treasure.item }, S.color)}</div>` : ""}</div>` : "";
   const eggs = B.eggs.length ? `<div class="sub">タマゴを てにいれた！</div><div class="gotcards">${B.eggs.map((r) => `<div class="mini-egg">${eggSVG({ r })}<small>${RARITY[r].name}</small></div>`).join("")}</div>` : "";
   const hatch = readyEggs().length ? `<p class="tip">🐣 タマゴが かえりそう！ ホームに もどってみよう</p>` : "";
+  const hkMsg = B.hk ? `${B.hk.sword ? `<p class="final">🗡️ ひみつの けん「${itemById(B.hk.sword).name}」を 手に いれた！<br><small>そうびの ぶきで しんかできるか 見てみよう</small></p>` : ""}${B.hk.hihou ? `<p class="final">${MATS[B.hk.hihou].em} ひほう「${MATS[B.hk.hihou].name}」を 手に いれた！<br><small>ずかんの「そざい」で くわしく 見られるよ</small></p>` : ""}` : "";
   const shopNew = newItems.length ? `<p class="tip">🛒 ショップに あたらしい そうびが ならんだ！<br><small>${newItems.map((x) => x.name).join("・")}</small></p>` : "";
-  const chMsg = isStage && st.ch.maou && first ? `<p class="final">${st.ch.maou === 2 ? "🌈 しんの まおうを たおした！<br>ぷにまるは でんせつの ゆうしゃに なった！" : "🌑 まおうを たおした！<br>でも、しんの まおうが どこかに いるらしい…"}</p>`
+  const chMsg = isStage && st.ch.maou && first ? `<p class="final">${st.ch.maou === 2 ? "🌈 しんの まおうを たおした！<br>ぷにまるは でんせつの ゆうしゃに なった！" : "🌑 まおうを たおした！<br>ぷにまるは 5つの 国の えいゆうだ！"}</p>`
     : isStage && st.n === 4 && first ? `<p class="final">${st.final ? `🎉 ${WORLDS.find((w) => w.id === st.ch.w).name}を ぜんぶ クリア！ すごい！` : `👑 「${st.ch.name}」の 章を クリア！`}</p>` : "";
   // つぎへ：ステージ1〜3 → つぎの ステージ、ボス → 国の 章えらび（つぎの 章へ）
   const next = !isStage || st.ch.maou ? "map()" : st.n < 4 ? `startBattle('${st.ch.id}-${st.n + 1}')` : `openWorld('${st.ch.w}')`;
@@ -1203,7 +1221,7 @@ function stageClear() {
     <div class="rewards"><span>🪙 +${B.coins}</span>${B.gems ? `<span>💎 +${B.gems}</span>` : ""}</div>
     ${cards ? `<div class="sub">あたらしい カード・★アップ</div>${cards}` : ""}
     ${Object.keys(B.mats).length ? `<div class="sub">そざい</div><div class="matgot">${Object.entries(B.mats).map(([k, v]) => `<span>${MATS[k].em}<small>${MATS[k].name}</small>×${v}</span>`).join("")}</div>` : ""}
-    ${eggs}${hatch}${shopNew}
+    ${hkMsg}${eggs}${hatch}${shopNew}
     ${box}
     <div class="row"><button class="big-btn" onclick="go('home')">ホームへ</button><button class="big-btn primary" onclick="${next}">つぎへ ▶</button></div>
   </div>`, "bg-clear");
@@ -1424,7 +1442,7 @@ function equip() {
   const cnt = (t) => (t === "color" ? "" : `<small>${ITEMS.filter((x) => x.type === t && S.owned.includes(x.id)).length}</small>`);
   const body = eqTab === "color"
     ? `<div class="esec"><div class="colors">${BODY_COLORS.map((c) => `<button class="cdot ${S.color === c ? "sel" : ""}" style="background:${c}" onclick="setColor('${c}')"></button>`).join("")}</div></div>`
-    : sec(eqTab);
+    : (eqTab === "weapon" ? hikenPanel() : "") + sec(eqTab);
   setScreen(`${topBar("そうび")}
     <div class="eqtop"><div class="hero">${charSVG(S.eq, S.color, "bounce")}</div>
     <div class="stats"><span>⚔️ ${pAtk()}</span><span>🛡️ ${pDef()}</span><span>❤️ ${pMaxHp()}</span></div>
@@ -1465,6 +1483,7 @@ function matPlaces(k) {
   const el = Object.keys(ELEM_MAT).find((x) => ELEM_MAT[x] === k);
   if (el) return `${ELEMENTS[el].icon}${ELEMENTS[el].name}の てきを たおすと ときどき 手に はいる（ボスは かならず）`;
   if (k === "niji") return "🌑 まおうの しろで 手に はいる";
+  if (MATS[k].hihou) { const W = WORLDS.find((x) => x.id === MATS[k].hihou); return `${W.icon}${W.name}の ボスを たおすと まれに 手に はいる ひほう。<br>${W.name}の ひみつの けんを しんかさせる ふしぎな ちからが あるらしい…`; }
   const w = Object.keys(WORLD_MAT).find((x) => WORLD_MAT[x] === k);
   if (w) { const W = WORLDS.find((x) => x.id === w); return `${W.icon}${W.name}の 章で 手に はいる（ボスは かならず）`; }
   return "";

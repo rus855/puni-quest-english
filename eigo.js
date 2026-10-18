@@ -19,6 +19,12 @@ const G_LABEL = { 1: "中1", 2: "中2", 3: "中3", 4: "高1", 5: "高2", 6: "高
     CHAPTERS.push({ id, w: "kanji", g, sec: "a" + g, name, icon, items, boss: name.replace(/\s+/g, "") });
   });
 })();
+// 例文（単語ごとに 1つ。英文の ＿ に 見出し語が 入る）
+const VSENT = {};
+if (typeof VSENT_SRC !== "undefined") VSENT_SRC.forEach((d) => d.trim().split("\n").forEach((line) => {
+  const [key, en, ja] = line.trim().split("|");
+  if (VOCAB["v:" + key] && en && en.includes("＿")) VSENT["v:" + key] = { en, ja };
+}));
 // 学年ごとの エリア名（子どもの 画面では 学年ではなく エリアの 名前で 見せる）
 const SEC_LABEL = {
   a1: { icon: "🌱", name: "わかばの森" }, a2: { icon: "🌷", name: "はなの丘" }, a3: { icon: "🌊", name: "なみの海辺" },
@@ -33,7 +39,7 @@ const stem = (s) => s.replace(/[ぁ-ん]+$/, "");
 // 漢字・カタカナを ふくむ 2文字の つながり（「調査」「予約」など）
 const bigrams = (s) => { const out = []; for (let i = 0; i < s.length - 1; i++) { const g = s.slice(i, i + 2); if (/[一-龯ァ-ヶ]/.test(g) && !/[〜（）]/.test(g)) out.push(g); } return out; };
 // ひらがなが 多くて 見分けにくい 同じ 意味の 語（どちらも 正解に 見えるので いっしょに 出さない）
-const SYN = [["glad", "happy"], ["big", "large"], ["begin", "start"], ["finish", "end"], ["almost", "nearly"], ["maybe", "probably", "perhaps"], ["smart", "clever"], ["often", "frequently"], ["store", "shop"], ["difficult", "hard"], ["gentle", "kind"], ["quickly", "fast"], ["sorrow", "grief"], ["moreover", "besides"]];
+const SYN = [["glad", "happy"], ["big", "large"], ["begin", "start"], ["finish", "end"], ["almost", "nearly"], ["maybe", "probably", "perhaps"], ["smart", "clever"], ["often", "frequently"], ["store", "shop"], ["difficult", "hard"], ["gentle", "kind"], ["quickly", "fast"], ["sorrow", "grief"], ["moreover", "besides"], ["decide", "determine", "resolve"], ["conclude", "determine"]];
 const synOf = (w) => SYN.find((g) => g.includes(w.toLowerCase()));
 function meanOverlap(a, b, wa, wb) {
   if (wa && wb) { const s = synOf(wa); if (s && s.includes(wb.toLowerCase())) return true; }
@@ -139,9 +145,20 @@ function makeVocabQ(id, kind) {
   if (!kind) {
     const r = Math.random(), sp = V.w.length <= 12 && !/[^A-Za-z]/.test(V.w) ? 0.2 : 0;
     const li = audioOK() && canSay(V) ? 0.12 : 0;
-    kind = r < li ? "vlisten" : r < li + sp ? "vspell" : r < li + sp + 0.36 ? "vword" : "vmean";
+    // 例文の 空らん（例文が ある 単語）：約4分の1
+    const se = VSENT[id] ? 0.25 : 0;
+    kind = r < li ? "vlisten" : r < li + sp ? "vspell" : r < li + sp + se ? "vsent" : r < li + sp + se + (se ? 0.25 : 0.36) ? "vword" : "vmean";
   }
   const explain = `<span class="en big2">${esc(V.w)}</span>［${pos}］${esc(V.m)}`;
+  if (kind === "vsent" && VSENT[id]) {
+    const S2 = VSENT[id], blank = '<span class="eblank">（　　）</span>';
+    const ds = vocabDistractors(V, 3, false).map((x) => `<span class="en">${esc(x.w)}</span>`);
+    const q = { id, kind: "choice", explain: `${explain}<div class="script"><div class="en">${esc(S2.en).replace("＿", `<b>${esc(V.w)}</b>`)}</div><div>${esc(S2.ja)}</div></div>`,
+      head: `<div class="qlabel">（　）に 入る 英単語は？</div><div class="qtext"><span class="en">${esc(S2.en).replace("＿", blank)}</span><br><small class="ja">${esc(S2.ja)}</small></div>` };
+    mkOpts(q, `<span class="en">${esc(V.w)}</span>`, ds);
+    q.cls = optCls(q.opts);
+    return q;
+  }
   if (kind === "vspell" || kind === "vdojo") {
     const n = V.w.length, dojo = kind === "vdojo";
     // 文字数の ます（ふつうは 1文字目だけ 見せる。道場は ヒントなし）
