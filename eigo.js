@@ -91,7 +91,7 @@ const AUD = (() => {
     stop();
     const my = ++token, ac = BGM.ctx();
     try {
-      if (ac.state === "suspended") await ac.resume();
+      if (ac.state !== "running") await ac.resume().catch(() => {});
       const bufs = await Promise.all(files.map(load));
       if (my !== token) return;
       BGM.duck(true);

@@ -28,7 +28,7 @@ const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 // ---------- セーブデータ ----------
 function newSave() {
   return {
-    v: 1, name: "", color: BODY_COLORS[0], coins: 50, gems: 0, sound: false, bgm: false, aud: 1, mats: {},
+    v: 1, name: "", color: BODY_COLORS[0], coins: 50, gems: 0, sound: !!PQ_DEBUG, bgm: !!PQ_DEBUG, aud: 1, mats: {}, // 音は さいしょ オフ（デバッグでは オン）
     owned: ["w_stick", "a_cloth", "h_none", "x_none"], eq: { weapon: "w_stick", armor: "a_cloth", hat: "h_none", acc: "x_none" },
     cards: {}, cleared: {}, stClear: {}, tierClear: {}, stats: { tot: 0, cor: 0, days: {} },
     eggs: [], pets: [], partner: 0, petDex: {}, petUid: 0,
@@ -146,7 +146,7 @@ function snd(type) {
   if (S && !S.sound) return;
   try {
     if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)();
-    if (AC.state === "suspended") AC.resume();
+    if (AC.state !== "running") AC.resume().catch(() => {}); // ロックの あとの「interrupted」も もどす
     // 正解の「ピンポン！」（チャイムのような 2つの 音）
     if (type === "pinpon") {
       const t0 = AC.currentTime;
