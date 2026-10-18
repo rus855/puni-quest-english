@@ -67,7 +67,7 @@ kids_back = r"""<div class="backbar"><a id="back" href="../index.html">◀ タ�
   // ぷにまるクエストの 保護者ページから 来たときは、そこへ もどる（?back=/…／同じ サイトの ページだけ）
   (function () {
     var m = location.search.match(/[?&]back=([^&]+)/), back = m ? decodeURIComponent(m[1]) : "";
-    if (!/^\/[^\/]/.test(back)) return;
+    if (!/^\/[^\/\\]/.test(back) || /[\\\s]/.test(back)) return; // 「//」「/\」で 始まる（ほかの サイトに なる）ものや 空白・\ を ふくむ ものは うけつけない
     var b = document.getElementById("back"); if (b) { b.href = back; b.textContent = "◀ 保護者ページに もどる"; }
     document.querySelectorAll("a[data-keepback]").forEach(function (a) { a.href += "&back=" + encodeURIComponent(back); });
   })();
@@ -86,7 +86,7 @@ par_back = r"""<div class="backbar"><a id="back" href="../parent.html">◀ 保�
   // ぷにまるクエストの 保護者ページから 来たときは、そこへ もどる（?back=/…／同じ サイトの ページだけ）
   document.addEventListener("DOMContentLoaded", function () {
     var m = location.search.match(/[?&]back=([^&]+)/), back = m ? decodeURIComponent(m[1]) : "";
-    if (!/^\/[^\/]/.test(back)) return;
+    if (!/^\/[^\/\\]/.test(back) || /[\\\s]/.test(back)) return; // 「//」「/\」で 始まる（ほかの サイトに なる）ものや 空白・\ を ふくむ ものは うけつけない
     document.getElementById("back").href = back;
     document.querySelectorAll("a[data-keepback]").forEach(function (a) { a.href += "&back=" + encodeURIComponent(back); });
   });
