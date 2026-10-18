@@ -60,10 +60,17 @@ kids_secs = txt[txt.index('  <!-- ===== 1 はじめかた'):txt.index('  <!-- ==
 parent_sec = block('<section class="parent" id="parents">', "</section>")
 
 # こども用：もどる先は タイトル（保護者ページから 来たときは 保護者ページ）
-kids_back = """<div class="backbar"><a id="back" href="../index.html">◀ タイトルに もどる</a><span>📘 せつめいしょ</span><a class="tocbtn" href="#toc">📑 もくじ</a></div>
+kids_back = r"""<div class="backbar"><a id="back" href="../index.html">◀ タイトルに もどる</a><span>📘 せつめいしょ</span><a class="tocbtn" href="#toc">📑 もくじ</a></div>
 <script>
   // 保護者ページから 来たときは 保護者ページに もどる
   if (/[?&]from=parent/.test(location.search)) { var b = document.getElementById("back"); b.href = "../parent.html"; b.textContent = "◀ 保護者ページに もどる"; }
+  // ぷにまるクエストの 保護者ページから 来たときは、そこへ もどる（?back=/…／同じ サイトの ページだけ）
+  (function () {
+    var m = location.search.match(/[?&]back=([^&]+)/), back = m ? decodeURIComponent(m[1]) : "";
+    if (!/^\/[^\/]/.test(back)) return;
+    var b = document.getElementById("back"); if (b) { b.href = back; b.textContent = "◀ 保護者ページに もどる"; }
+    document.querySelectorAll("a[data-keepback]").forEach(function (a) { a.href += "&back=" + encodeURIComponent(back); });
+  })();
 </script>"""
 kids = doc("ぷにまるクエスト ENGLISH せつめいしょ", kids_back + f"""
 <div class="wrap">
@@ -74,7 +81,16 @@ kids = doc("ぷにまるクエスト ENGLISH せつめいしょ", kids_back + f"
 open(os.path.join(OUT, "kids.html"), "w", encoding="utf-8").write(kids)
 
 # 保護者用
-par_back = """<div class="backbar"><a href="../parent.html">◀ 保護者ページに もどる</a><span>📗 保護者用</span><a class="tocbtn" href="#toc">📑 もくじ</a></div>"""
+par_back = r"""<div class="backbar"><a id="back" href="../parent.html">◀ 保護者ページに もどる</a><span>📗 保護者用</span><a class="tocbtn" href="#toc">📑 もくじ</a></div>
+<script>
+  // ぷにまるクエストの 保護者ページから 来たときは、そこへ もどる（?back=/…／同じ サイトの ページだけ）
+  document.addEventListener("DOMContentLoaded", function () {
+    var m = location.search.match(/[?&]back=([^&]+)/), back = m ? decodeURIComponent(m[1]) : "";
+    if (!/^\/[^\/]/.test(back)) return;
+    document.getElementById("back").href = back;
+    document.querySelectorAll("a[data-keepback]").forEach(function (a) { a.href += "&back=" + encodeURIComponent(back); });
+  });
+</script>"""
 # 保護者用の もくじ（カードの 見出しから つくる）
 heads = re.findall(r'<div class="pc">\s*<h3>(.*?)</h3>', parent_sec)
 _n = iter(range(len(heads)))
@@ -83,7 +99,7 @@ par_toc = '<nav class="toc" id="toc" aria-label="もくじ">' + "".join(f'<a cla
 parent_sec = parent_sec.replace('<div class="qa">', '<div class="qa" id="qa">', 1)
 parents = doc("ぷにまるクエスト ENGLISH 保護者用せつめいしょ", par_back + f"""
 <div class="wrap">
-  <div class="toplinks"><a href="kids.html?from=parent">📘 こども用 せつめいしょ（遊び方）を 見る</a></div>
+  <div class="toplinks"><a data-keepback href="kids.html?from=parent">📘 こども用 せつめいしょ（遊び方）を 見る</a></div>
   {par_toc}
   {parent_sec}
   <footer>ぷにまるクエスト ENGLISH 保護者用せつめいしょ</footer>

@@ -168,6 +168,13 @@ section, header, nav.toc, .pc, .qa { scroll-margin-top: 84px; }
 <script>
   // 保護者ページから 来たときは 保護者ページに もどる
   if (/[?&]from=parent/.test(location.search)) { var b = document.getElementById("back"); b.href = "../parent.html"; b.textContent = "◀ 保護者ページに もどる"; }
+  // ぷにまるクエストの 保護者ページから 来たときは、そこへ もどる（?back=/…／同じ サイトの ページだけ）
+  (function () {
+    var m = location.search.match(/[?&]back=([^&]+)/), back = m ? decodeURIComponent(m[1]) : "";
+    if (!/^\/[^\/]/.test(back)) return;
+    var b = document.getElementById("back"); if (b) { b.href = back; b.textContent = "◀ 保護者ページに もどる"; }
+    document.querySelectorAll("a[data-keepback]").forEach(function (a) { a.href += "&back=" + encodeURIComponent(back); });
+  })();
 </script>
 <div class="wrap">
   <header class="cover">

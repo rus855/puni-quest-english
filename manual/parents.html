@@ -164,9 +164,18 @@ section, header, nav.toc, .pc, .qa { scroll-margin-top: 84px; }
 </style>
 </head>
 <body>
-<div class="backbar"><a href="../parent.html">◀ 保護者ページに もどる</a><span>📗 保護者用</span><a class="tocbtn" href="#toc">📑 もくじ</a></div>
+<div class="backbar"><a id="back" href="../parent.html">◀ 保護者ページに もどる</a><span>📗 保護者用</span><a class="tocbtn" href="#toc">📑 もくじ</a></div>
+<script>
+  // ぷにまるクエストの 保護者ページから 来たときは、そこへ もどる（?back=/…／同じ サイトの ページだけ）
+  document.addEventListener("DOMContentLoaded", function () {
+    var m = location.search.match(/[?&]back=([^&]+)/), back = m ? decodeURIComponent(m[1]) : "";
+    if (!/^\/[^\/]/.test(back)) return;
+    document.getElementById("back").href = back;
+    document.querySelectorAll("a[data-keepback]").forEach(function (a) { a.href += "&back=" + encodeURIComponent(back); });
+  });
+</script>
 <div class="wrap">
-  <div class="toplinks"><a href="kids.html?from=parent">📘 こども用 せつめいしょ（遊び方）を 見る</a></div>
+  <div class="toplinks"><a data-keepback href="kids.html?from=parent">📘 こども用 せつめいしょ（遊び方）を 見る</a></div>
   <nav class="toc" id="toc" aria-label="もくじ"><a class="par" href="#p0">📚 出題される内容</a><a class="par" href="#p1">🧠 くり返しのしくみ</a><a class="par" href="#p2">🔐 保護者ページ</a><a class="par" href="#p3">⚙️ 出題範囲の設定</a><a class="par" href="#p4">📈 学習記録</a><a class="par" href="#p5">💾 データの保存</a><a class="par" href="#p6">🔇 音とマナーモード・リスニング</a><a class="par" href="#p7">🛡️ 安心して使えるように</a><a class="par" href="#p8">🏆 たからもの（記念）</a><a class="par" href="#p9">⏱️ 遊び方の目安</a><a href="#qa" class="par">よくある質問</a></nav>
   <section class="parent" id="parents">
     <span class="label">おうちの方へ</span>

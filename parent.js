@@ -305,7 +305,8 @@ function resetWorld() {
 }
 
 function head() {
-  if (EMBED) return `<div class="pg-embhead"><b>🔤 ぷにまるクエスト ENGLISH</b><span><a target="_top" href="manual/kids.html?from=parent">📘 こども用</a><a target="_top" href="manual/parents.html">📗 保護者用</a></span></div>`;
+  // ぷにまるクエストの 保護者ページの 中では、説明書の リンクは 外側（ぷにまる側）に 出すので ここには 出さない
+  if (EMBED) return `<div class="pg-embhead"><b>🔤 ぷにまるクエスト ENGLISH</b></div>`;
   const n = P.codes.filter(Boolean).length;
   return `<h1 class="pg-title sm">🐣 ぷにまるクエスト ENGLISH <small>保護者ページ</small></h1>
     <div class="pg-manuals"><a href="manual/kids.html?from=parent">📘 こども用 せつめいしょ</a><a href="manual/parents.html">📗 保護者用 せつめいしょ</a></div>
