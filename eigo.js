@@ -134,6 +134,50 @@ function sayWord(id) {
 }
 // ずかんで リスニングの 音声を 聞く
 function playCard(id) { if (!audioOK()) { toast("🎵 BGMを オンに すると 聞けるよ"); return; } AUD.play(BANK[id].au); }
+// ---------- リスニングの スキップ（電車の 中など 音が 出せない とき） ----------
+// リスニングの国 いがいで 出た リスニングの 問題（単語の「聞いて えらぶ」・ニガテ・まおう）だけ スキップできる
+const canSkipListen = (q) => !!(q && q.au && q.kind === "choice" && !(B.st && B.st.ch && B.st.ch.w === "sci"));
+// スキップ：その 問題は なかった ことに して（記録しない）、リスニング いがいの 問題に かえる。このバトルでは もう リスニングは 出さない
+function skipListen() {
+  if (!B || B.busy || B.over || !canSkipListen(B.q)) return;
+  AUD.stop(); snd("tap");
+  B.noListen = true;
+  if (B.sid === "nigate") {
+    // ニガテたいじ：リスニングの てきを、リスニング いがいの ニガテに かえる。かえる 問題が なければ その てきは いなく なる
+    for (let k = B.enemies.length - 1; k > B.ei; k--) if (!swapNigateListen(B.enemies[k])) B.enemies.splice(k, 1);
+    if (!swapNigateListen(B.e)) {
+      B.enemies.splice(B.ei, 1);
+      if (B.ei < B.enemies.length) { nextEnemy(); toast("🔇 このバトルでは リスニングの 問題を 出さないよ"); return; }
+      // のこりが リスニングの ニガテ だけ → 今回は おわり（つぎに 音が 出せる ときに たおそう）
+      B.over = true;
+      modal(`<div class="mtitle">🔇 また こんど</div><p>のこっている ニガテモンスターは リスニングの 問題だけ だったよ。</p>
+        <p class="small">音が 出せる ときに また たおしに こよう！<br>（ここまでの コイン 🪙${B.coins} は もらえるよ）</p>
+        <button class="big-btn primary" onclick="closeModal();map()">ぼうけんに もどる</button>`);
+      return;
+    }
+    $("app").querySelector(".ename").textContent = B.e.name;
+  }
+  const special = B.q.special;
+  // 同じ 単語を リスニング いがいの 形で 出しなおさないよう、ちがう 問題に する
+  const before = B.q.id;
+  B.recent = [before, ...B.recent];
+  nextQ(special);
+  if (B.q.id === before && B.sid !== "nigate") nextQ(special);
+  toast("🔇 このバトルでは リスニングの 問題を 出さないよ");
+}
+// ニガテモンスターの 問題が リスニングなら、ほかの ニガテに かえる（かえられたら true）
+function swapNigateListen(e) {
+  if (!e || !e.item || !isListenId(e.item)) return true;
+  const used = new Set(B.enemies.map((x) => x.item));
+  const cand = nigateIds().filter((id) => !isListenId(id) && !used.has(id) && itemOn(id));
+  if (!cand.length) return false;
+  const id = pick(cand);
+  e.item = id;
+  e.name = `ニガテ「${cardLabel(id)}」`;
+  e.label = id.startsWith("v:") && cardLabel(id).length <= 8 ? cardLabel(id) : "";
+  if (e === B.e) { const el = $("enemy"); if (el) el.innerHTML = enemySVG(e); }
+  return true;
+}
 const auButton = () => `<button class="aubtn" id="aubtn" onclick="playQ()">🔊 もう一度 聞く</button>`;
 const mannerNote = () => `<small class="aunote">📳 マナーモードの ときは 音が 聞こえないよ</small>`;
 
@@ -144,7 +188,7 @@ function makeVocabQ(id, kind) {
   const pos = POS_NAME[V.p] || V.p;
   if (!kind) {
     const r = Math.random(), sp = V.w.length <= 12 && !/[^A-Za-z]/.test(V.w) ? 0.2 : 0;
-    const li = audioOK() && canSay(V) ? 0.12 : 0;
+    const li = audioOK() && canSay(V) && !(typeof B !== "undefined" && B && B.noListen) ? 0.12 : 0;
     // 例文の 空らん（例文が ある 単語）：約4分の1
     const se = VSENT[id] ? 0.25 : 0;
     kind = r < li ? "vlisten" : r < li + sp ? "vspell" : r < li + sp + se ? "vsent" : r < li + sp + se + (se ? 0.25 : 0.36) ? "vword" : "vmean";
@@ -163,7 +207,7 @@ function makeVocabQ(id, kind) {
     const n = V.w.length, dojo = kind === "vdojo";
     // 文字数の ます（ふつうは 1文字目だけ 見せる。道場は ヒントなし）
     const hint = `<span class="lslots">${V.w.split("").map((c, i) => `<i>${!dojo && i === 0 ? esc(c) : ""}</i>`).join("")}</span>`;
-    return { id, kind: "spell", ans: [V.w, ...V.alt], explain, au: audioOK() && !dojo && canSay(V) ? [wordAudio(V)] : null,
+    return { id, kind: "spell", ans: [V.w, ...V.alt], explain, au: audioOK() && !dojo && canSay(V) && !(typeof B !== "undefined" && B && B.noListen) ? [wordAudio(V)] : null,
       head: `<div class="qlabel">${dojo ? "⌨️ スペル道場：英単語を 入力しよう" : "⌨️ 英単語を 入力しよう"}</div><div class="qword fsm">${esc(V.m)}<small class="pos">［${pos}］</small></div><div class="qhint">${hint}<small>（${n}文字）</small></div>` };
   }
   if (kind === "vword") {

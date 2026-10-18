@@ -786,8 +786,11 @@ function nextQ(special = false) {
   let id;
   if (B.sid === "nigate") id = B.e.item;
   else {
-    const rv = B.st.ch ? reviewPool(B.st.ch) : [];
-    id = rv.length && Math.random() < 0.25 ? pickId(rv, B.recent) : pickId(B.pool, B.recent);
+    // リスニングを スキップした バトルでは、リスニングの 問題を 出さない
+    const noL = (list) => (B.noListen ? list.filter((x) => !isListenId(x)) : list);
+    const rv = noL(B.st.ch ? reviewPool(B.st.ch) : []);
+    const pool = noL(B.pool).length ? noL(B.pool) : B.pool;
+    id = rv.length && Math.random() < 0.25 ? pickId(rv, B.recent) : pickId(pool, B.recent);
   }
   B.recent = [id, ...B.recent].slice(0, Math.min(8, Math.max(0, Math.floor(B.pool.length * 0.6)))); // 最近 出た 問題は しばらく 出にくく
   // 必殺技：公式なら「正しい公式は？」、それ以外は ふつうの問題で 3ばい
@@ -822,6 +825,8 @@ function showQ() {
   AUD.stop();
   $("qpanel").innerHTML = sp + q.head + body;
   if (q.kind === "write") showWrite();
+  // リスニングの国 いがいで リスニングの 問題が 出たら、音が 出せない ときの スキップ ボタン
+  if (canSkipListen(q) && $("aubtn")) $("aubtn").insertAdjacentHTML("afterend", `<button class="skipbtn" onclick="skipListen()">🔇 音が 出せないので スキップ</button>`);
   // リスニングは 問題が 出たら すぐに 1回 流す（つづりの 問題の 🔊 は 自分で おす）
   if (q.au && q.kind === "choice" && audioOK()) setTimeout(() => { if (B && B.q === q) playQ(); }, 350);
   if (PQ_DEBUG && window.PQ_SHOWANS) debugMarkAnswer(q);

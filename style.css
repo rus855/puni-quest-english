@@ -792,3 +792,5 @@ u { text-decoration-thickness: 3px; text-decoration-color: #ff4d6d; text-underli
   .bhead .ttl small { font-size: 10px; }
   .bhead .back { padding-left: 10px; padding-right: 10px; }
 }
+/* リスニングの スキップ */
+.skipbtn { display: block; margin: 0 auto 6px; border: 2px solid #d9c9f0; background: #fff; color: #6b5b8a; border-radius: 99px; padding: 6px 14px; font-size: 13px; font-weight: bold; }
