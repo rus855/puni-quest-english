@@ -263,13 +263,14 @@ function tsDone(perfect) {
 // ---------- ステージの 名前（章の 中身の 英語から つける） ----------
 // 例：「School の 小道」「Library の 広場」…（ステージ1〜3は その範囲で 出る ことばから）
 const EN_PLACES = {
-  kanji: [["小道", "広場", "森"], ["辞書の間", "単語の書庫", "ことばの大樹", "スペルの神殿", "語彙の宮殿", "アルファベット城"]],
+  kanji: [["小道", "広場", "森"], ["辞書の間", "単語の書庫", "ことばの大樹", "スペルの神殿", "語彙の宮殿", "ABCの城"]],
   kotoba: [["門", "坂道", "迷路"], ["文法塔", "ルールの城", "時計じかけの間", "グラマー神殿", "ことわりの砦", "テンスの塔"]],
   math: [["広場", "回廊", "塔"], ["組み立て工房", "パズルの城", "つなぎの神殿", "構文の砦", "フレーズの宮殿", "からくり屋敷"]],
   sci: [["小道", "谷", "塔"], ["放送室", "こだまの洞くつ", "ラジオの塔", "ひびきの神殿", "音楽堂", "電波の城"]],
   soc: [["門", "広場", "図書館"], ["大ホール", "おしゃべり城", "ものがたりの塔", "会話の宮殿", "読書の神殿", "劇場"]],
 };
 function makeStageNames() {
+  const GEN = ["イヤホン", "マイク", "スピーカー", "レコード", "ラジオ", "オルゴール", "ベル", "ささやき", "ハーモニー", "メロディー", "おしゃべり", "あいさつ", "手紙", "絵本", "しおり", "ポスター"];
   const enOf = (s) => { const m = String(s).replace(/<[^>]+>/g, "").match(/[A-Za-z][A-Za-z '’.,!?~-]*/); return m ? m[0].trim().replace(/[ ,.!?-]+$/, "") : ""; };
   CHAPTERS.forEach((ch, idx) => {
     if (CH_STAGE_NAMES[ch.id]) return;
@@ -284,16 +285,23 @@ function makeStageNames() {
         return v.w.charAt(0).toUpperCase() + v.w.slice(1);
       }
       const b = BANK[id] || {};
-      return enOf(b.t) || String(b.t || ch.name).replace(/^.*：/, "");
+      // 英語が ない カード名（日本語）は 長くなるので、短い ことばに する
+      return enOf(b.t) || GEN[(idx * 3 + i) % GEN.length];
     };
     // リスニング・会話の 章は 答えが わからないように、ことばを 使わない 名前に する
-    const GEN = ["イヤホン", "マイク", "スピーカー", "レコード", "ラジオ", "オルゴール", "ベル", "ささやき", "ハーモニー", "メロディー", "おしゃべり", "あいさつ", "手紙", "絵本", "しおり", "ポスター"];
     if (ch.w === "sci" || ch.w === "soc") {
       const g = (n) => GEN[(idx * 3 + n) % GEN.length];
       CH_STAGE_NAMES[ch.id] = [`${g(0)}の ${P[0][0]}`, `${g(1)}の ${P[0][1]}`, `${g(2)}の ${P[0][2]}`, `ヌシの ${P[1][idx % P[1].length]}`];
       return;
     }
-    const short = (s) => (s.length > 16 ? s.slice(0, 15) + "…" : s);
+    // 見出しが 2行に ならないように、12文字を こえる 英語は 単語の 区切りで 短く する（…は つけない）
+    const short = (s) => {
+      if (s.length <= 12) return s;
+      const ws = s.split(" ");
+      let o = ws[0];
+      for (let j = 1; j < ws.length && (o + " " + ws[j]).length <= 12; j++) o += " " + ws[j];
+      return o.length <= 12 ? o : o.slice(0, 12);
+    };
     CH_STAGE_NAMES[ch.id] = [`${short(key(0))}の ${P[0][0]}`, `${short(key(k))}の ${P[0][1]}`, `${short(key(2 * k))}の ${P[0][2]}`, `ヌシの ${P[1][idx % P[1].length]}`];
   });
 }

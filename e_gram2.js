@@ -494,7 +494,7 @@
     G("another（もう1つ）", "I don't like this one. Show me ＿.", "another", ["other", "the others", "others"], "別のもう1つ"),
   ]);
   add("gE5", [
-    G("時制の一致 can", "He said he ＿ swim.", "could", ["can", "will", "may to"], "can → could"),
+    G("時制の一致 can", "He said he ＿ swim when he was five.", "could", ["can", "will", "may to"], "過去のことなので could"),
     G("時制の一致 had been", "She told me she ＿ to London before.", "had been", ["has been", "was being", "is"], "経験の大過去"),
     G("ask 人 not to", "He asked me ＿ late.", "not to be", ["to not be", "don't be", "not be"], "否定の依頼"),
     G("asked whether", "She asked me ＿ I was hungry.", "whether", ["that", "what", "which"], "Yes/No の間接疑問"),

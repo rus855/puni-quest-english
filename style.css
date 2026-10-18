@@ -785,3 +785,10 @@ u { text-decoration-thickness: 3px; text-decoration-color: #ff4d6d; text-underli
 .olist.ow .oitem { padding: 8px 10px; font-size: 17px; }
 .olist.ow .oitem i { width: 20px; height: 20px; font-size: 12px; }
 .obuilt { min-height: 30px; margin: 0 4px 8px; padding: 6px 10px; border-bottom: 3px dashed #d9c9f0; text-align: center; font-size: 18px; font-weight: bold; color: #6a5cff; }
+/* 小さい 画面（iPhone SE など）では バトルの 見出しを 1行に おさめる */
+@media (max-width: 360px) {
+  .bhead { gap: 5px; padding-left: 8px; padding-right: 8px; }
+  .bhead .ttl { font-size: 12px; padding: 6px 4px; letter-spacing: -0.3px; }
+  .bhead .ttl small { font-size: 10px; }
+  .bhead .back { padding-left: 10px; padding-right: 10px; }
+}
