@@ -2,7 +2,7 @@
 // ※アプリを更新したら VERSION の数字を上げる
 // ぷにまるクエスト（同じ サイト）の 保存とは 名前を わけている
 const PREFIX = "eigo-";
-const VERSION = PREFIX + "v2";
+const VERSION = PREFIX + "v3";
 const FILES = ["./", "index.html", "style.css", "data.js", "world.js", "e_vocab1.js", "e_vocab2.js", "eigo.js", "e_gram.js", "e_idiom.js", "e_listen.js", "e_talk.js", "cloud.js", "pets.js", "music.js", "gear.js", "extra.js", "treasure.js", "app.js", "manifest.webmanifest", "icons/icon-192.png", "icons/apple-touch-icon.png"];
 
 self.addEventListener("install", (e) => {

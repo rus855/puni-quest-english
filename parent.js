@@ -5,6 +5,8 @@
 const P_FIREBASE = { apiKey: "AIzaSyDUNwtZ4KxpvrIKuGl9X48qWjTzHqGG3As", projectId: "puni-quest" };
 // ぷにまるクエスト（同じ サイト）の 保護者ページとは 別に 記憶する
 const P_KEY = "eigoquest_parent_v1";
+// ぷにまるクエストの 保護者ページの 中に 表示する とき（?embed=1&code=…）。コードの 登録は ぷにまる側で する
+const EMBED = /[?&]embed=1/.test(location.search) && window.parent !== window;
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -22,7 +24,24 @@ try {
   if (!P.codes[P.ci]) P.ci = Math.max(0, P.codes.findIndex(Boolean));
   P.code = P.codes[P.ci] || "";
 } catch (e) { /* 無視 */ }
-const remember = () => { try { localStorage.setItem(P_KEY, JSON.stringify({ codes: P.codes, labels: P.labels, dels: P.dels, ci: P.ci, cur: P.cur })); } catch (e) { /* 無視 */ } };
+const remember = () => { if (EMBED) return; try { localStorage.setItem(P_KEY, JSON.stringify({ codes: P.codes, labels: P.labels, dels: P.dels, ci: P.ci, cur: P.cur })); } catch (e) { /* 無視 */ } };
+if (EMBED) {
+  const c = (location.search.match(/[?&]code=([A-Z0-9]{12})/) || [])[1] || "";
+  P.codes = [c, "", ""]; P.labels = ["", "", ""]; P.dels = [0, 0, 0]; P.ci = 0; P.code = c; P.cur = 0;
+  document.body.classList.add("pg-embed");
+  document.documentElement.style.height = "auto"; document.body.style.height = "auto";
+  // 中身の 高さに あわせて 外の わく（iframe）の 高さを かえる（中身が へったら わくも ちぢめる）
+  const fit = () => { try { window.frameElement.style.height = Math.max(200, $("papp").offsetHeight + 16) + "px"; } catch (e) { /* 無視 */ } };
+  new ResizeObserver(fit).observe($("papp"));
+  // 画面の 描きかえが とまっている ときでも あわせられるように、ときどき たしかめる
+  setInterval(fit, 700);
+  window.addEventListener("load", fit);
+}
+// 画面の いちばん上へ（中に 表示している ときは 外の ページを わくの 上まで もどす）
+function toTop() {
+  if (!EMBED) { window.scrollTo(0, 0); return; }
+  try { const r = window.frameElement.getBoundingClientRect(); window.parent.scrollTo(0, window.parent.scrollY + r.top - 80); } catch (e) { /* 無視 */ }
+}
 const fmtCode = (c) => (c ? c.replace(/(.{4})(.{4})(.{4})/, "$1-$2-$3") : "");
 
 // ---------- カードの 名前・国 ----------
@@ -78,6 +97,7 @@ function saveCfg(cfg, msgId) {
 // ---------- 画面 ----------
 // コードの 登録・変更（最大 3つ）
 function codeView(msg) {
+  if (EMBED) { $("papp").innerHTML = `<div class="pg-wrap">${head()}<div class="pg-card"><p class="pg-err">${msg || "コードを ご確認ください。"}</p></div></div>`; return; }
   const has = P.codes.some(Boolean);
   $("papp").innerHTML = `<div class="pg-wrap">
     ${has ? `<div class="pg-top"><button class="back" onclick="load()">◀ もどる</button><b>コードの 追加・変更</b><span></span></div>` : `<h1 class="pg-title">🐣 ぷにまるクエスト ENGLISH<br><small>保護者ページ</small></h1>`}
@@ -209,7 +229,7 @@ function render() {
     </div>
     <p class="pg-note center">読みこみ：${fmtTime(P.loadedAt)}（ゲームで 遊ぶと 数秒〜数分で 反映されます）</p>
     <button class="big-btn" onclick="load()">🔄 最新に する</button>
-    <button class="big-btn" onclick="codeView()">➕ コードを 追加・変更する</button>
+    ${EMBED ? "" : `<button class="big-btn" onclick="codeView()">➕ コードを 追加・変更する</button>`}
   </div>`;
 }
 
@@ -240,8 +260,8 @@ function setCoarse(g) {
 
 // くわしい 設定（別の 画面）
 let setWorld = "kanji";
-function openSettings() { P.view = "settings"; renderSettings(); window.scrollTo(0, 0); }
-function closeSettings() { P.view = ""; render(); window.scrollTo(0, 0); }
+function openSettings() { P.view = "settings"; renderSettings(); toTop(); }
+function closeSettings() { P.view = ""; render(); toTop(); }
 function renderSettings(w) {
   if (w) setWorld = w;
   const cfg = curCfg(), S = P.slots[P.cur];
@@ -285,6 +305,7 @@ function resetWorld() {
 }
 
 function head() {
+  if (EMBED) return `<div class="pg-embhead"><b>🔤 ぷにまるクエスト ENGLISH</b><span><a target="_top" href="manual/kids.html?from=parent">📘 こども用</a><a target="_top" href="manual/parents.html">📗 保護者用</a></span></div>`;
   const n = P.codes.filter(Boolean).length;
   return `<h1 class="pg-title sm">🐣 ぷにまるクエスト ENGLISH <small>保護者ページ</small></h1>
     <div class="pg-manuals"><a href="manual/kids.html?from=parent">📘 こども用 せつめいしょ</a><a href="manual/parents.html">📗 保護者用 せつめいしょ</a></div>

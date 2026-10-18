@@ -92,3 +92,10 @@
 .pg-delcard { background: #fff1e6; border: 2px solid #ffc9a3; color: #8a3b00; font-size: 14px; }
 .pg-delcard small { display: block; margin-top: 4px; color: #6b4a2a; font-size: 12px; }
 .pg-delcode { margin-top: 6px; font-size: 20px; font-weight: bold; letter-spacing: .06em; text-align: center; background: #fff; border-radius: 10px; padding: 6px; user-select: all; }
+
+/* ぷにまるクエストの 保護者ページの 中に 表示する とき */
+body.pg-embed { background: transparent; min-height: 0; }
+body.pg-embed .pg-wrap { padding: 0; }
+.pg-embhead { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 6px 8px; margin: 2px 0 10px; padding: 8px 12px; border-radius: 14px; background: #efeaff; color: #4b3a8a; font-size: 14px; }
+.pg-embhead span { display: flex; gap: 6px; }
+.pg-embhead a { font-size: 12px; font-weight: bold; color: #4b3a8a; background: #fff; border-radius: 99px; padding: 4px 10px; text-decoration: none; white-space: nowrap; }
