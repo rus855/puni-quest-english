@@ -1,5 +1,5 @@
 // ===== ひけん（国ごとの ひみつの けん）と ひほう =====
-// ・その国の てきを たおすと まれに（3%）ひけんが 手に はいる（60体 たおしても 出なければ 次は かならず）
+// ・その国の てきを たおすと まれに（1.5%）ひけんが 手に はいる（120体 たおしても 出なければ 次は かならず）
 // ・区切りの ボス（単語の国・文法の国：エリアの 最初の 章、ほかの 国：3章ごと）を はじめて たおすと ひほうが 1こ。
 //   ほかの ボスは まれに（10%・15回 出なければ 次は かならず）
 // ・ひけん ＋ ひほう 1こ → しんか1、＋3こ → しんか2、＋5こ → しんか3
@@ -77,17 +77,21 @@ function hardStats(ch, boss) {
 const hasHiken = (w) => [0, 1, 2, 3].some((lv) => S.owned.includes(hikenId(w, lv)));
 const hikenLv = (w) => [3, 2, 1, 0].find((lv) => S.owned.includes(hikenId(w, lv)));
 // てきを たおしたとき（ふつうの 章・スペル道場）
+// ひけんが 出る 確率と、かならず 出るまでの 体数
+const HIKEN_RATE = 0.015, HIKEN_PITY = 120;
 function hikenDrop(e) {
   const ch = B.st.ch, h = ch && hikenOf(ch.w);
   if (!h || ch.maou) return null;
   const got = {};
-  // ひみつの けん（3%。その国で 60体 たおしても 出なければ 次は かならず）
+  // ひみつの けん（1.5%。その国で 120体 たおしても 出なければ 次は かならず）
   if (!hasHiken(h.w) && !S.owned.includes(HIKEN_FINAL)) {
     S.hs = S.hs || {};
     S.hs[h.w] = (S.hs[h.w] || 0) + 1;
     // 英語版は 学年の エリアを とばして 高1から はじめられるので、高1の ボスを はじめて たおしたら かならず（高2・高3の バリアの ボスの 前に そろう）
     const sure = e.boss && ch.g === 4 && !stStars(B.sid);
-    if (sure || S.hs[h.w] > 60 || Math.random() < 0.03) { S.owned.push(hikenId(h.w, 0)); got.sword = hikenId(h.w, 0); }
+    // 高2・高3の 章（バリアの ある ボス）に 来たら かならず。先へ 進めなく ならないように
+    const hard = typeof chHard === "function" && chHard(ch);
+    if (sure || hard || S.hs[h.w] > HIKEN_PITY || Math.random() < HIKEN_RATE) { S.owned.push(hikenId(h.w, 0)); got.sword = hikenId(h.w, 0); }
   }
   // ひほう（ボス）
   if (e.boss) {
