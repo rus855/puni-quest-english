@@ -27,6 +27,7 @@ S.stats.tot=420; S.stats.cor=356; S.login={last:today(), streak:4};
 ensureDaily(); S.daily.prog = { correct10: 10, starup3: 2 };
 checkTreasures(); S.treasureSeen={}; Object.keys(S.treasures).forEach(k=>S.treasureSeen[k]=1);
 save(); window.SAVED=JSON.stringify(S);
+window.ROOMDEMO=()=>{ window.PQ_HOUR=11; S.furn={}; ["f_bed","f_window","f_pic","f_plant","f_bear","f_kake","f_k1","f_k2","f_k3","f_s1","f_s2","f_s3","f_chair","f_balloon","f_rug2","f_rug1","f_sofa","f_tv","f_shelf","f_candle","f_k4"].forEach(id=>S.furn[id]=1); const k="v:dream"; S.cards[k]=Object.assign(S.cards[k]||{s:0,ng:0}, {s:5}); S.room={cur:0,big:1,rooms:[[{id:"f_rug2",x:1,y:2},{id:"f_bed",x:0,y:0},{id:"f_window",x:1,y:-1},{id:"f_kake",x:3,y:-1},{id:"f_k1",x:0,y:-1},{id:"f_s1",x:4,y:-1},{id:"f_pic",x:5,y:-1},{id:"f_candle",x:0,y:1},{id:"f_tv",x:2,y:1},{id:"f_sofa",x:1,y:3},{id:"f_shelf",x:4,y:0},{id:"f_chair",x:5,y:1},{id:"f_plant",x:5,y:4},{id:"f_bear",x:4,y:3},{id:"f_k2",x:0,y:4}],[]],pets:[],kake:k,stamps:{},themes:["base","base"],combos:{tv:1,read:1,sun:1,sleep:1,cozy:1}}; };
 window.RESTORE=()=>{ S=JSON.parse(window.SAVED); SL.slots[0]=S; };
 window.TYPE=(s)=>{ const e=document.getElementById("spin"); if(e) e.value=s; };
 window.FAKE=(k)=>{ const N=64,c=document.createElement("canvas"); c.width=c.height=N; const g=c.getContext("2d",{willReadFrequently:true}); g.translate(N/2,N/2); g.rotate(-0.05); g.scale(0.92,1.05); g.translate(-N/2,-N/2); g.font=(N*0.78)+"px serif"; g.textAlign="center"; g.textBaseline="middle"; g.fillText(k,N/2+1,N/2+2); const sk=thinGrid(gridOf(g,N,100),N), st=[]; for(let y=0;y<N;y++) for(let x=0;x<N;x++) if(sk[y*N+x]) st.push([[x/N+Math.sin(y/7)*0.012,y/N+Math.sin(x/8)*0.012]]); return st; };
@@ -56,8 +57,10 @@ const SHOTS = [
   ["17_nakama", `RESTORE(); nakama("pets")`],
   ["18_egg", `RESTORE(); S.eggs[0].p=20; nakama("egg")`],
   ["19_breed", `RESTORE(); S.pets[0].lv=6; S.pets[3].lv=7; nakama("breed")`],
+  ["19c_otsukai", `RESTORE(); PETS.slice(0,10).forEach(p=>S.petDex[p.id]=1); var n=Date.now(), rw={coin:60,mats:{suuji:4,hidama:3},rare:[],egg:-1,xp:10}; S.otsukai=[{u:2,w:"math",h:8,start:n-8*3600000,end:n-1000,rw},{u:4,w:"sci",h:4,start:n-3600000,end:n+2*3600000+1500000,rw}]; nakama("otsukai")`],
+  ["19d_otquiz", `RESTORE(); var n=Date.now(), rw={coin:60,mats:{suuji:4,hidama:3},rare:[],egg:-1,xp:10}; S.otsukai=[{u:2,w:"math",h:8,start:n-8*3600000,end:n-1000,rw}]; var id="v:library"; onWrong(id); nakama("otsukai"); S.otsukai[0].quiz=Object.assign({ng:true,cls:""},(function(){ for(let i=0;i<20;i++){ const q=makeQ(id,"vmean"); if(q.kind==="choice") return {id:q.id,head:q.head,cls:q.cls||"",opts:q.opts,ai:q.ai,explain:q.explain}; } })()); otReturn(0)`, 900],
   ["20_dex", `RESTORE(); nakama("dex")`],
-  ["21_zukan", `RESTORE(); zukan("kanji")`],
+  ["21_zukan", `RESTORE(); S.cardLog=Object.keys(S.cards).filter(id=>id.startsWith("v:")&&S.cards[id].s>0).slice(0,6).map((id,i)=>({id,k:i%3?"new":"up",s:1,at:Date.now()-i*36e5*(i>3?20:1)})); zukan("new")`],
   ["22_mats", `RESTORE(); zukan("mats")`],
   ["23_missions", `RESTORE(); missions()`],
   ["24_settings", `RESTORE(); parent()`],
@@ -77,6 +80,13 @@ const SHOTS = [
   ["38_cert", `RESTORE(); S.treasures=Object.assign(S.treasures||{}, {cert:Date.now()}); treasures(); treasureDetail(TREASURES.findIndex(t=>t.id==="cert"))`, 900],
   ["39_hiken", `RESTORE(); S.owned.push("wh_kanji1","wh_math0"); S.eq.weapon="wh_kanji1"; S.mats.hk_kanji=2; S.mats.hk_math=1; S.matSeen.hk_kanji=1; S.matSeen.hk_math=1; S.matSeen.hk_soc=1; S.mats.hk_soc=1; eqTab="weapon"; equip(); setTimeout(()=>{ const p=document.querySelector(".hkpanel"); window.scrollTo(0, p.getBoundingClientRect().top + window.scrollY - 130); }, 100)`, 900],
   ["39b_barrier", `RESTORE(); S.owned.push("wh_kanji1"); S.eq.weapon="wh_kanji1"; startBattle("v5a-4"); B.ei=1; nextEnemy()`, 1000],
+  ["50_room", `RESTORE(); RM={sel:"",move:-1}; window.ROOMDEMO(); room()`, 1500],
+  ["50b_place", `RESTORE(); RM={sel:"",move:-1}; window.ROOMDEMO(); room(); roomPick("f_rug1")`, 1500],
+  ["50c_furnshop", `RESTORE(); S.coins=2480; addMat("kagaku",5); shopFCat="sci"; shop("furn")`, 900],
+  ["50d_talk", `RESTORE(); RM={sel:"",move:-1}; roomCat="all"; window.ROOMDEMO(); S.room.rooms[0].push({id:"f_ball",x:1,y:3}); S.furn.f_ball=1; room(); setTimeout(()=>{ clearInterval(roomTimer); const el=document.querySelectorAll(".ract.rpet")[0]; el.style.transition="none"; const g=rgeo(); el.style.left=pc(g.X(3.2,3.6)); el.style.top=pc(g.Y(3.6)); el.style.setProperty("--fw", g.cw(3.6)); el.style.zIndex=140; roomTalk(el, roomPetList()[0]); }, 300)`, 1300],
+  ["50e_night", `RESTORE(); RM={sel:"",move:-1}; window.ROOMDEMO(); window.PQ_HOUR=21; S.room.stamps.kanji="x"; S.room.themes=["kanji","base"]; room()`, 1500],
+  ["50f_evening", `RESTORE(); RM={sel:"",move:-1}; window.ROOMDEMO(); window.PQ_HOUR=17; S.room.stamps.soc="x"; S.room.themes=["soc","base"]; room()`, 1500],
+  ["50g_more", `RESTORE(); RM={sel:"",move:-1}; window.PQ_HOUR=11; S.furn={}; FURN.forEach(f=>S.furn[f.id]=fMax(f)); S.treasures=S.treasures||{}; TREASURES.slice(0,8).forEach((t,i)=>S.treasures[t.id]=Date.now()-(10-i)*86400000); S.room={cur:0,big:1,v2:1,rooms:[[{id:"f_rug3",x:0,y:2},{id:"g_t07",x:0,y:0},{id:"f_trophy",x:3,y:0},{id:"g_k05",x:2,y:0},{id:"g_h07",x:5,y:0},{id:"g_m07",x:4,y:2},{id:"g_s07",x:0,y:2},{id:"g_m03",x:2,y:3},{id:"g_t05",x:5,y:4},{id:"g_k07",x:3,y:4},{id:"g_k02",x:2,y:4},{id:"g_h04",x:0,y:4},{id:"f_window",x:1,y:-1},{id:"f_pic",x:4,y:-1}],[]],pets:[],kake:"",stamps:{},themes:["base","base"],combos:{}}; room()`, 1500],
   ["27_hatch", `RESTORE(); S.eggs[0].p=20; nakama("egg"); hatchEgg(0)`, 2800],
 ];
 

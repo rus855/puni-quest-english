@@ -69,6 +69,15 @@ const pAtk = () => 5 + itemById(S.eq.weapon).atk;
 // てきの じゃくてん（その属性に 強い属性）
 const weakOf = (el) => Object.keys(BEATS).find((k) => BEATS[k] === el) || null;
 const effNow = (wEl) => effect(wEl, B.e.el, B.e.imm);
+// その ぶきの ほんとうの 効きかた（つらぬき・ひけんの とくべつな 力を ふくむ）と、バリアで へる 割合
+function wEff(w) {
+  const sp = w.sp || {}, ch = B.st && B.st.ch;
+  let x = effNow(w.el);
+  if (sp.pierce && x < 1) x = 1;
+  if (sp.world && B.e.boss && ch && !ch.maou && (sp.world === "all" || sp.world === ch.w) && x < 1) x = 1;
+  return x;
+}
+const wBar = (w) => { const sp = w.sp || {}, e = B.e; return e.barrier && !(sp.world && (sp.world === "all" || sp.world === e.barrier)) ? sp.bar || 0.5 : 1; };
 // よろいの 属性で うけるダメージが かわる
 function armorFactor(el) {
   const a = itemById(S.eq.armor);
@@ -128,11 +137,19 @@ function onCorrect(id) {
     if (c.s === 0) { c.s = 1; c.last = d; ev = "new"; }
   } else if (c.s === 0) { c.s = 1; c.last = d; ev = "new"; }
   else if (c.last !== d && c.s < 5) { c.s++; c.last = d; ev = "up"; }
-  if (ev === "new" || ev === "up") addProg("starup3");
+  if (ev === "new" || ev === "up") { addProg("starup3"); logCard(id, ev, c.s); }
   // タマゴもいっしょに育つ
-  if (growEggs(hsp().egg || 1) && typeof B !== "undefined" && B && $("fx")) fxText("🥚 タマゴが うごいた！", "card");
+  if (growEggs((hsp().egg || 1) * (okaeriBoost() ? 2 : 1)) && typeof B !== "undefined" && B && $("fx")) fxText("🥚 タマゴが うごいた！", "card");
   return ev;
 }
+// あたらしく なった カード（ずかんの「🆕 あたらしい」に ならべる。さいきんの 80こ）
+function logCard(id, k, s) {
+  S.cardLog = (S.cardLog || []).filter((x) => x.id !== id);
+  S.cardLog.unshift({ id, k, s, at: Date.now() });
+  S.cardLog.length = Math.min(S.cardLog.length, 80);
+}
+// まだ 見ていない あたらしい カードの かず
+const newCards = () => (S.cardLog || []).filter((x) => x.at > (S.cardSeenAt || 0)).length;
 function onWrong(id) {
   const c = card(id);
   c.tot++; c.ng = true; c.st = 0; c.cs = 0; recordStat(false);
@@ -430,7 +447,7 @@ function setScreen(html, cls = "") {
 }
 function go(name, arg) {
   snd("tap");
-  ({ home, map, shop, equip, zukan, missions, parent, nakama, openWorld, openChapter, treasures })[name](arg);
+  ({ home, map, shop, equip, zukan, missions, parent, nakama, openWorld, openChapter, treasures, room })[name](arg);
 }
 function topBar(title, back = "home") {
   return `<div class="topbar"><button class="back" onclick="go('${back}')">◀ もどる</button><div class="ttl">${title}</div>
@@ -479,7 +496,7 @@ function setupDone() {
 // ---------- ホーム ----------
 function home() {
   ensureDaily();
-  const claimable = MISSIONS.some((m) => (S.daily.prog[m.id] || 0) >= m.goal && !S.daily.claimed[m.id]);
+  const claimable = allMissions().some((m) => (S.daily.prog[m.key || m.id] || 0) >= m.goal && !S.daily.claimed[m.id]);
   const ng = nigateIds().length;
   setScreen(`<div class="homewrap">
     <div class="topbar"><button class="back" onclick="goTitle()">🏠 タイトル</button><div class="money big"><span>🪙 ${S.coins}</span><span>💎 ${S.gems}</span></div><button class="gear" onclick="go('parent')" aria-label="せってい">⚙️</button></div>
@@ -489,15 +506,18 @@ function home() {
     <div class="pname">${esc(S.name)}</div>
     <div class="stats"><span>⚔️ ${pAtk()}</span><span>🛡️ ${pDef()}</span><span>❤️ ${pMaxHp()}</span></div>
     ${eggStrip()}
+    ${otBanner()}
+    ${okaeriBoost() ? `<div class="okbar">🌟 おかえりブースト中！ きょうは コインと タマゴの そだちが 2ばい</div>` : ""}
     <button class="big-btn primary" onclick="go('map')">⚔️ ぼうけんに でる！</button>
     <div class="menu4 m6">
       <button onclick="go('shop')"><span class="mi">🛒</span>ショップ${newShop() ? `<i class="badge">NEW</i>` : ""}</button>
       <button onclick="go('equip')"><span class="mi">🎽</span>そうび</button>
-      <button onclick="go('nakama')"><span class="mi">🐾</span>なかま${readyEggs().length ? `<i class="badge">🐣</i>` : ""}</button>
-      <button onclick="go('zukan')"><span class="mi">🃏</span>ずかん${ng ? `<i class="badge">${ng}</i>` : ""}</button>
+      <button onclick="go('nakama')"><span class="mi">🐾</span>なかま${readyEggs().length ? `<i class="badge">🐣</i>` : otBack().length ? `<i class="badge">🎒</i>` : ""}</button>
+      <button onclick="go('zukan', newCards() ? 'new' : undefined)"><span class="mi">🃏</span>ずかん${newCards() ? `<i class="badge">NEW</i>` : ""}</button>
       <button onclick="go('missions')"><span class="mi">📜</span>ミッション${claimable ? `<i class="badge">!</i>` : ""}</button>
       <button onclick="saveMenu()"><span class="mi">💾</span>セーブ</button>
-      <button class="tbtn" onclick="go('treasures')"><span class="mi">🏆</span>たからもの${unseenTreasures().length ? `<i class="badge">NEW</i>` : ""}</button>
+      <div class="hrow2"><button class="tbtn" onclick="go('treasures')"><span class="mi">🏆</span>たからもの${unseenTreasures().length ? `<i class="badge">NEW</i>` : ""}</button>
+      <button class="tbtn rbtn" onclick="go('room')"><span class="mi">🏠</span>ひみつきち</button></div>
     </div></div>`, "bg-home");
   // ログインボーナス → たからもの → タマゴがかえる の順に1つずつ見せる
   if (!loginBonus() && !treasureEvents()) petEvents();
@@ -514,10 +534,14 @@ function eggStrip() {
 function loginBonus() {
   const d = today();
   if (S.login.last === d) return false;
-  S.login.streak = S.login.last === yesterday() ? S.login.streak + 1 : 1;
+  if (S.newsV === undefined) S.newsV = 11; // おかえりイベントより 前の おしらせは 出さない（英語版は v12 から）
+  const last = S.login.last;
+  // れんぞくが とぎれても 0には もどさず 半分 のこす
+  S.login.streak = last === yesterday() ? S.login.streak + 1 : Math.max(1, Math.floor((S.login.streak || 0) / 2));
   S.login.last = d;
   const bonus = 20 + 5 * Math.min(S.login.streak - 1, 6);
   S.coins += bonus; save();
+  if (okaeriCheck(last, bonus)) return true;
   setTimeout(() => {
     snd("coin");
     modal(`<div class="mtitle">ログインボーナス！</div><div class="bigicon">🎁</div>
@@ -699,6 +723,7 @@ function startBattle(sid) {
     const [chId, n] = sid.split("-");
     const ch = chapterOf(chId);
     if (ch.maou) ch.items = maouPool();
+    else S.lastCh = ch.id; // おかえりの「前の つづきから」に つかう
     st = stageInfo(ch, Number(n));
     enemies = stageEnemies(ch, Number(n));
   }
@@ -774,7 +799,7 @@ function updBars() {
   $("special").classList.toggle("ready", B.gauge >= 5);
   $("special").disabled = B.gauge < 5;
   const w = itemById(S.eq.weapon);
-  const x = effNow(w.el);
+  const x = wEff(w) * wBar(w);
   $("wel").textContent = `${ELEMENTS[w.el].icon}${EFFECT_MARK(x)}`;
   $("wel").parentElement.classList.toggle("good", x >= 2);
   $("wel").parentElement.classList.toggle("bad", x < 1);
@@ -929,8 +954,9 @@ async function judge(ok) {
     const got = Math.floor(raw) + (Math.random() < raw % 1 ? 1 : 0);
     const rg = (asp().regen || 0) + (hsp().regen || 0);
     if (rg) B.php = Math.min(pMaxHp(), B.php + Math.max(1, Math.round(pMaxHp() * rg)));
-    B.coins += got; S.coins += got;
-    if (q.kind === "write" && !q.self) { B.coins += 3; S.coins += 3; fxText("✍️ +3", "card"); }
+    const got2 = okaeriBoost() ? got * 2 : got; // おかえりブースト
+    B.coins += got2; S.coins += got2;
+    if (q.kind === "write") { B.coins += 3; S.coins += 3; fxText("✍️ +3", "card"); }
     petCharge();
     await attack(q.special ? 3 : q.kind === "write" ? 2 : 1, q.special ? q.skill || "スーパーアタック" : null);
   } else {
@@ -1163,9 +1189,10 @@ function lose() {
   const st = B.st;
   let hint = "そうびを つよくしてから また ちょうせんしよう！";
   if (st.ch) {
-    const e = B.e, wk = weakOf(e.el), cur = effNow(itemById(S.eq.weapon).el);
+    const e = B.e, wk = weakOf(e.el), cw = itemById(S.eq.weapon), cur = wEff(cw);
     const ownedW = ITEMS.filter((x) => x.type === "weapon" && S.owned.includes(x.id));
-    if (cur < 1) hint = `いまの ぶきは ${e.name}に「${EFFECT_LABEL(cur)}」。「🔄 ぶき」で かえよう！`;
+    if (e.barrier && wBar(cw) < 1) hint = `🛡️ ${e.name}の バリアで ダメージが へっていたよ。この国の ひけんを しんかさせて いどもう！`;
+    else if (cur < 1) hint = `いまの ぶきは ${e.name}に「${EFFECT_LABEL(cur)}」。「🔄 ぶき」で かえよう！`;
     else if (wk && !ownedW.some((x) => x.el === wk)) hint = `${e.name}には ${ELEMENTS[wk].icon} の ぶきが 2ばい きくよ。そざいを あつめて つくろう！`;
     else if (armorFactor(e.el) > 1) hint = `いまの よろいは ${ELEMENTS[e.el].icon} の こうげきに よわいよ。よろいを かえてみよう！`;
     else if (pDef() < 10) hint = "ショップで よろいを つくると ダメージが へるよ！";
@@ -1189,6 +1216,7 @@ function stageClear() {
   if (isStage) {
     S.stClear = S.stClear || {}; S.tierClear = S.tierClear || {};
     S.stClear[B.sid] = Math.max(prev, stars);
+    addProg("stage1");
     if (first) {
       const bonus = (st.n === 4 ? 25 : 8) * (st.rt || st.tier);
       S.coins += bonus; B.coins += bonus;
@@ -1242,11 +1270,12 @@ function openBox() {
 function swapWeapon() {
   if (B.busy) return;
   snd("tap");
-  const ws = ITEMS.filter((x) => x.type === "weapon" && S.owned.includes(x.id));
-  const e = B.e;
+  const e = B.e, ch = B.st && B.st.ch, here = (w) => w.sp && w.sp.world && ch && !ch.maou && (w.sp.world === "all" || w.sp.world === ch.w);
+  // この国の ひけんを いちばん上に
+  const ws = ITEMS.filter((x) => x.type === "weapon" && S.owned.includes(x.id)).sort((a, b) => (here(b) ? 1 : 0) - (here(a) ? 1 : 0));
   modal(`<div class="mtitle">ぶきを かえる</div><p class="small">${esc(e.name)}の ぞくせい：<b>${ELEMENTS[e.el].icon} ${ELEMENTS[e.el].name}</b></p>
-    <div class="wlist">${ws.map((w) => { const x = effNow(w.el); return `<button class="witem ${S.eq.weapon === w.id ? "sel" : ""} ${x >= 2 ? "good" : x < 1 ? "bad" : ""}" onclick="setWeapon('${w.id}')">
-      <span class="wel">${ELEMENTS[w.el].icon}</span><b>${w.name}${w.sp ? `<small class="spt">${spText(w.sp)}</small>` : ""}</b><small>⚔️${w.atk}</small><i class="eff">${EFFECT_MARK(x)} ${EFFECT_LABEL(x)}</i></button>`; }).join("")}</div>
+    <div class="wlist">${ws.map((w) => { const x = wEff(w), bf = wBar(w), m = x * bf; return `<button class="witem ${S.eq.weapon === w.id ? "sel" : ""} ${m >= 2 ? "good" : m < 1 ? "bad" : ""}" onclick="setWeapon('${w.id}')">
+      <span class="wel">${ELEMENTS[w.el].icon}</span><b>${w.name}</b><small>⚔️${w.atk}</small><span class="effs"><i class="eff">${EFFECT_MARK(x)} ${EFFECT_LABEL(x)}</i>${bf < 1 ? `<i class="eff bar">🛡️ ${bf === 0.5 ? "はんぶん" : "3/4"}</i>` : ""}${here(w) ? `<i class="eff hk">🗡️ この国で つよい</i>` : ""}</span>${w.sp ? `<small class="spt">${spText(w.sp)}</small>` : ""}</button>`; }).join("")}</div>
     <button class="big-btn" onclick="closeModal()">とじる</button>`);
 }
 function setWeapon(id) {
@@ -1385,17 +1414,17 @@ const unlocked = (it) => (PQ_DEBUG && window.PQ_OPEN) || !it.unlock || !!(S.tier
 // まだ ならんでいない しなものの ヒント
 const lockHint = (it) => (it.unlock === "maou" ? "🌑 まおうを たおすと ならぶよ" : `${MATS[TMAT[it.unlock][0]].em} の 章を クリアすると ならぶよ`);
 // まだ見ていない新商品があるか
-function newShop() { return ITEMS.some((x) => x.price > 0 && !x.drop && unlocked(x) && !S.owned.includes(x.id) && !(S.seen || {})[x.id]); }
+function newShop() { return ITEMS.some((x) => x.price > 0 && !x.drop && unlocked(x) && !S.owned.includes(x.id) && !(S.seen || {})[x.id]) || (typeof newFurn === "function" && newFurn()); }
 
 function shop(tab) {
   if (tab) shopTab = tab;
-  const tabs = [["weapon", "ぶき"], ["armor", "よろい"], ["hat", "ぼうし"], ["acc", "アクセ"]];
+  const tabs = [["weapon", "ぶき"], ["armor", "よろい"], ["hat", "ぼうし"], ["acc", "アクセ"], ["furn", typeof newFurn === "function" && newFurn() ? `かぐ<i class="tdot"></i>` : "かぐ"]];
   S.seen = S.seen || {};
   ITEMS.forEach((x) => { if (unlocked(x)) S.seen[x.id] = 1; });
   save();
   let lockShown = 0;
   const lockAll = ITEMS.filter((x) => x.type === shopTab && x.price > 0 && !x.drop && !unlocked(x)).length;
-  const list = ITEMS.filter((x) => x.type === shopTab && x.price > 0 && !x.drop).map((it) => {
+  const list = shopTab === "furn" ? furnShopList() : ITEMS.filter((x) => x.type === shopTab && x.price > 0 && !x.drop).map((it) => {
     if (!unlocked(it)) {
       if (++lockShown > 3) return "";
       return `<div class="sitem locked"><div class="sprev qmark">？</div><div class="sname"><b>？？？</b><small>${lockHint(it)}</small></div><button class="sbtn" disabled>🔒</button></div>`;
@@ -1415,7 +1444,7 @@ function shop(tab) {
   const mats = Object.keys(MATS).filter((k) => S.mats[k]);
   setScreen(`${topBar("ショップ")}
     <div class="matbar">${mats.length ? mats.map((k) => `<span>${MATS[k].em}${S.mats[k]}</span>`).join("") : "<small>そざいは てきを たおすと 手に はいるよ</small>"}</div>
-    <div class="tabs">${tabs.map(([k, l]) => `<button class="${k === shopTab ? "on" : ""}" onclick="shop('${k}')">${l}</button>`).join("")}</div>
+    <div class="tabs t5">${tabs.map(([k, l]) => `<button class="${k === shopTab ? "on" : ""}" onclick="shop('${k}')">${l}</button>`).join("")}</div>
     <div class="slist">${list}${lockAll > 3 ? `<p class="note">ほかにも ？？？ が ${lockAll - 3}こ あるよ</p>` : ""}
     ${shopTab === "acc" ? `<p class="note">✨ ショップに ない めずらしい アクセサリーも あるよ。<br>スペル道場や まおうの しろで 手に 入るかも…？</p>` : ""}</div>`, "bg-shop");
 }
@@ -1469,7 +1498,8 @@ function worldCards(w) {
 // デバッグ：ずかん 全表示
 const zukanAll = () => PQ_DEBUG && window.PQ_ZUKANALL;
 function zukanTabs() {
-  return `<div class="tabs wtabs">${WORLDS.map((w) => `<button class="${zTab === w.id ? "on" : ""}" onclick="zukan('${w.id}')">${w.icon}<small>${w.name.replace("の国", "")}</small></button>`).join("")}<button class="${zTab === "mats" ? "on" : ""}" onclick="zukan('mats')">🧺<small>そざい</small></button></div>`;
+  const nn = newCards();
+  return `<div class="tabs wtabs"><button class="znew ${zTab === "new" ? "on" : ""}" onclick="zukan('new')">🆕<small>あたらしい</small>${nn ? `<i class="badge">${nn > 99 ? "99+" : nn}</i>` : ""}</button>${WORLDS.map((w) => `<button class="${zTab === w.id ? "on" : ""}" onclick="zukan('${w.id}')">${w.icon}<small>${w.name.replace("の国", "")}</small></button>`).join("")}<button class="${zTab === "mats" ? "on" : ""}" onclick="zukan('mats')">🧺<small>そざい</small></button></div>`;
 }
 // そざいずかん：どこで 手に入るか（一度 手に入れた そざいだけ）
 function matPlaces(k) {
@@ -1503,9 +1533,31 @@ function matZukan() {
       : `<div class="mcard lock"><span class="mem">？</span><div><b>？？？</b><small>まだ 見つけていない そざい</small></div></div>`).join("")}</div>`, "bg-shop");
 }
 
+// あたらしい カード（はじめて 手に いれた・★が ふえた）を あたらしい じゅんに
+function newZukan() {
+  const seen = S.cardSeenAt || 0, log = (S.cardLog || []).filter((x) => S.cards[x.id]).sort((a, b) => b.at - a.at);
+  const day = (t) => { const d = Math.round((new Date(today() + "T00:00:00") - new Date(dateKey(new Date(t)) + "T00:00:00")) / 864e5); return d <= 0 ? "きょう" : d === 1 ? "きのう" : `${d}日まえ`; };
+  let last = "", tiles = "";
+  log.forEach((x) => {
+    const c = S.cards[x.id], d = day(x.at), w = cardWorldObj(x.id);
+    if (d !== last) { tiles += `<div class="zday">${d}</div>`; last = d; }
+    tiles += `<button class="zc f ${c.s >= 5 ? "shiny" : ""} ${c.ng ? "ngc" : ""}" onclick="cardDetail('${x.id}')">
+      ${x.at > seen ? `<i class="znewtag">NEW</i>` : ""}<i class="zkind ${x.k}">${x.k === "new" ? "はじめて" : "★アップ"}</i>
+      <b>${esc(cardLabel(x.id))}</b><span class="stars">${"★".repeat(c.s)}${"☆".repeat(5 - c.s)}</span>${w ? `<i class="zw">${w.icon}</i>` : ""}</button>`;
+  });
+  setScreen(`${topBar("ずかん")}${zukanTabs()}
+    <div class="zhead">🆕 あたらしい カード</div>
+    <p class="note">はじめて 手に いれた カードと ★が ふえた カードが、あたらしい じゅんに ならぶよ（さいきんの 80こ）</p>
+    ${log.length ? `<div class="zgrid znewgrid">${tiles}</div>` : `<div class="empty-note"><div class="bigicon">🃏</div><p>まだ ないよ。<br>バトルで 正解すると カードが ふえるよ！</p></div>`}`, "bg-shop");
+  // 見たので NEW を けす（つぎに ひらいた ときから）
+  S.cardSeenAt = Date.now(); save();
+}
+// カードが どの国の ものか（国の データ。cardWorld は 国の id を かえす）
+const cardWorldObj = (id) => WORLDS.find((w) => w.id === cardWorld(id)) || null;
 function zukan(tab) {
   if (tab) zTab = tab;
   if (zTab === "mats") return matZukan();
+  if (zTab === "new") return newZukan();
   const ids = worldCards(zTab);
   const got = ids.filter((id) => S.cards[id] && S.cards[id].s > 0).length;
   const big = false;
@@ -1547,8 +1599,8 @@ function cardDetail(id) {
 // ---------- ミッション ----------
 function missions() {
   ensureDaily();
-  const list = MISSIONS.map((m) => {
-    const p = Math.min(m.goal, S.daily.prog[m.id] || 0), done = p >= m.goal, got = S.daily.claimed[m.id];
+  const list = allMissions().map((m) => {
+    const p = Math.min(m.goal, S.daily.prog[m.key || m.id] || 0), done = p >= m.goal, got = S.daily.claimed[m.id];
     const rw = m.reward.coin ? `🪙${m.reward.coin}` : `💎${m.reward.gem}`;
     return `<div class="mis ${got ? "got" : ""}"><div class="mtext"><b>${m.text}</b><div class="bar mb"><i style="width:${(p / m.goal) * 100}%"></i><span>${p} / ${m.goal}</span></div></div>
       <button class="sbtn ${done && !got ? "" : "no"}" ${done && !got ? `onclick="claim('${m.id}')"` : "disabled"}>${got ? "うけとった" : rw}</button></div>`;
@@ -1557,7 +1609,7 @@ function missions() {
     <p class="note">ミッションは まいにち あたらしくなるよ</p>`, "bg-shop");
 }
 function claim(id) {
-  const m = MISSIONS.find((x) => x.id === id);
+  const m = allMissions().find((x) => x.id === id);
   S.daily.claimed[id] = true;
   if (m.reward.coin) S.coins += m.reward.coin;
   if (m.reward.gem) S.gems += m.reward.gem;

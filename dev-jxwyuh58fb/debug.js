@@ -45,6 +45,7 @@
           <button onclick="dbg.gearAll()">そうび・アクセ ぜんぶ</button>
           <button onclick="dbg.accAll()">アクセサリー ぜんぶ</button>
           <button onclick="dbg.hiken()">ひけん0＋ひほう9こ（5国）</button>
+          <button onclick="dbg.okaeri(4)">おかえり（4日ぶり）</button><button onclick="dbg.okaeri(15)">おかえり（15日ぶり）</button><button onclick="dbg.otsukai()">おつかいを すぐ かえす</button><button onclick="dbg.furn()">かぐ ぜんぶ</button><button onclick="dbg.hour()">ひみつきちの じかん：${typeof window.PQ_HOUR === "number" ? window.PQ_HOUR + "じ" : "いま"}</button><button onclick="dbg.themes()">もようがえ ぜんぶ</button>
         </div>
         <h3>進み具合</h3>
         <div class="dgrid">
@@ -120,6 +121,34 @@
       ITEMS.forEach((x) => { if (!S.owned.includes(x.id)) S.owned.push(x.id); });
       if (!S.eq.acc) S.eq.acc = "x_none";
       done(`そうびを ${ITEMS.length}こ ぜんぶ そろえたよ（アクセサリーも）`);
+    },
+    okaeri(n) {
+      if (!needS()) return;
+      const d = nowDate(); d.setDate(d.getDate() - n); S.login.last = dateKey(d); S.newsV = 7; save(); closeModal(); home();
+    },
+    hour() {
+      // いま → 7じ → 12じ → 17じ → 21じ → いま
+      const l = [undefined, 7, 12, 17, 21], i = l.indexOf(window.PQ_HOUR);
+      window.PQ_HOUR = l[(i + 1) % l.length];
+      done(`ひみつきちの じかんを ${typeof window.PQ_HOUR === "number" ? window.PQ_HOUR + "じ" : "いまの じかん"}に したよ`);
+    },
+    themes() {
+      if (!needS()) return;
+      roomData(); FURN_SETS.forEach((w) => { S.room.stamps[w] = S.room.stamps[w] || today(); }); save();
+      done("国の スタンプを ぜんぶ つけて、もようがえを ぜんぶ ひらいたよ");
+    },
+    furn() {
+      if (!needS()) return;
+      S.furn = S.furn || {};
+      FURN.forEach((f) => { S.furn[f.id] = fMax(f); });
+      save(); done(`かぐを ${FURN.length}しゅるい ぜんぶ 入れたよ`);
+    },
+    otsukai() {
+      if (!needS()) return;
+      const l = S.otsukai || [];
+      if (!l.length) return done("おつかい中の なかまが いないよ");
+      l.forEach((o) => { o.end = Date.now() - 1000; o.start = Math.min(o.start, o.end - 1000); });
+      save(); done(`${l.length}ひきの おつかいを かえってきた ことに したよ`);
     },
     hiken() {
       if (!needS()) return;
