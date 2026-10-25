@@ -210,8 +210,8 @@ function room() {
     <div class="tabs rmtabs"><button class="rmsave" onclick="roomSaveMenu()">📁 きろく</button>${roomTwo() ? [0, 1].map((i) => `<button class="${R.cur === i ? "on" : ""}" onclick="roomData().cur=${i};RM={sel:'',move:-1};room()">へや ${i + 1}</button>`).join("") : stampsHTML()}</div>
     ${roomTwo() ? stampsHTML() : ""}
     <div id="roombox">${roomHTML()}</div>
-    ${comboStrip()}
-    <div class="rmhint" id="rmhint">${roomHint()}</div>
+    <div id="rmcombo">${comboStrip()}</div>
+    <div class="rmhint ${RM.rot >= 0 ? "rot" : ""}" id="rmhint">${roomHint()}</div>
     ${!RM.sel && RM.move < 0 && (roomPetList().length || 1) ? `<p class="small rmtip">💬 ぷにまるや なかまを タップすると おしゃべり するよ</p>` : ""}
     <div class="row rmbtns"><button class="big-btn" onclick="roomPets()">🐾 なかま</button><button class="big-btn" onclick="roomThemePick()">🎨 もようがえ</button><button class="big-btn" onclick="go('shop','furn')">🛒 かぐ</button></div>
     <div class="sub">🪑 しまってある かぐ</div>
@@ -225,9 +225,26 @@ function room() {
 // 国セットの スタンプ（へやが 1つの ときは「きろく」の よこに ならべる）
 const stampsHTML = () => `<div class="stamps">${FURN_SETS.map((w) => `<span class="${roomData().stamps[w] ? "on" : ""}" title="${WORLDS.find((x) => x.id === w).name}セット">${WORLDS.find((x) => x.id === w).icon}</span>`).join("")}<small>セットの<br>スタンプ</small></div>`;
 function roomHint() {
-  if (RM.sel) { const f = furnById(RM.sel); return `${fIcon(f)} ${f.name}：${f.wall ? "かべの" : "ゆかの"} おきたい ところを タップしてね <button class="mini" onclick="RM={sel:'',move:-1};room()">やめる</button>`; }
-  if (RM.move >= 0) { const f = furnById(roomList()[RM.move].id); return `${fIcon(f)} ${f.name}を どこへ うごかす？ <button class="mini" onclick="RM={sel:'',move:-1};room()">やめる</button>`; }
+  if (RM.rot >= 0 && roomList()[RM.rot]) return rotHint();
+  if (RM.sel) { const f = furnById(RM.sel); return `${fIcon(f)} ${f.name}：${f.wall ? "かべの" : "ゆかの"} おきたい ところを タップしてね ${placeDirBtn(f.id)}<button class="mini" onclick="RM={sel:'',move:-1};room()">やめる</button>`; }
+  if (RM.move >= 0) { const f = furnById(roomList()[RM.move].id); return `${fIcon(f)} ${f.name}を どこへ うごかす？ ${placeDirBtn(f.id)}<button class="mini" onclick="RM={sel:'',move:-1};room()">やめる</button>`; }
   return `かぐを えらんで、へやの すきな ところに おこう！${roomList().length ? "<br><small>おいた かぐは ドラッグで うごかせるよ</small>" : ""}`;
+}
+// おく ときの むきボタン（じどう → まえ → みぎ → うしろ → ひだり → じどう）
+function placeDirBtn(id) {
+  const t = dirType(id);
+  if (!t) return "";
+  const d = RM.dir;
+  const label = d === undefined || d === null ? "じどう" : t === "m" ? (d === 3 ? "はんてん" : "そのまま") : DIR_NAME[d];
+  // えらんだ むきの 小さな 絵（じどうの ときは まえ むきで 見せる）
+  const f = furnById(id), pic = f.art ? `<span class="ficon">${furnArtSVG(f, d === undefined || d === null ? 0 : d)}</span>` : "";
+  return `<button class="mini" onclick="placeDirNext('${id}')">🔄 むき：${pic}${label}</button>`;
+}
+function placeDirNext(id) {
+  const t = dirType(id), seq = t === 4 ? [null, 0, 1, 2, 3] : t === 2 ? [null, 0, 2] : [null, 0, 3];
+  const k = seq.indexOf(RM.dir === undefined ? null : RM.dir);
+  RM.dir = seq[(k + 1) % seq.length];
+  snd("tap"); room();
 }
 const roomList = () => roomData().rooms[roomData().cur];
 
@@ -241,12 +258,17 @@ function roomPetList() {
 
 function roomPick(id) {
   snd("tap");
-  RM = { sel: RM.sel === id ? "" : id, move: -1 };
+  RM = { sel: RM.sel === id ? "" : id, move: -1, dir: null };
   room();
 }
 function roomTap(x, y) {
   if (Date.now() - roomDragEnd < 400) return; // ドラッグの おわりの クリックは むし
   const list = roomList();
+  if (RM.rot >= 0) {
+    const j = itemAt(x, y);
+    if (j >= 0 && dirType(list[j].id)) { RM.rot = j; snd("tap"); roomRefresh(); return; }
+    RM = { sel: "", move: -1 }; snd("tap"); room(); return;
+  }
   if (RM.sel) {
     const f = furnById(RM.sel);
     if (fOwn(f.id) - fPlaced(f.id) <= 0) { RM.sel = ""; room(); return; }
@@ -254,7 +276,9 @@ function roomTap(x, y) {
     const sp = fitSpot(f, x, y);
     if (sp) [x, y] = sp;
     if (!sp) { snd("ng"); toast(f.wall ? "かべの あいている ところを えらんでね" : "ゆかの あいている ところを えらんでね"); return; }
-    list.push({ id: f.id, x, y });
+    const np = { id: f.id, x, y };
+    if (RM.dir !== undefined && RM.dir !== null) { np.d = RM.dir; np.man = 1; }
+    list.push(np);
     snd("ok");
     if (fOwn(f.id) - fPlaced(f.id) <= 0) RM.sel = "";
     afterPlace();
@@ -266,6 +290,7 @@ function roomTap(x, y) {
     if (sp) [x, y] = sp;
     if (!sp) { snd("ng"); toast("そこには おけないよ"); return; }
     p.x = x; p.y = y; RM.move = -1; snd("ok");
+    if (RM.dir !== undefined && RM.dir !== null) { p.d = RM.dir; p.man = 1; }
     afterPlace();
     return;
   }
@@ -276,9 +301,59 @@ function roomTap(x, y) {
   modal(`<div class="mtitle">${fIcon(f)} ${f.name}</div>
     ${f.id === "f_kake" ? `<button class="big-btn primary" onclick="kakePick()">🖌️ かざる 英単語を えらぶ</button>` : ""}
     ${f.id === "f_trophy" ? `<p>たからもの <b>${Object.keys(S.treasures || {}).length}こ</b> を かざっているよ</p>` : ""}
-    <button class="big-btn" onclick="closeModal();RM={sel:'',move:${i}};room()">↔️ うごかす</button>
+    ${roomDirButtons(i)}
+    <button class="big-btn" onclick="closeModal();RM={sel:'',move:${i}};room()">✋ うごかす</button>
     <button class="big-btn" onclick="roomStore(${i})">📦 しまう</button>
     <button class="big-btn" onclick="closeModal()">とじる</button>`);
+}
+// むきの ボタン（メニュー）
+function roomDirButtons(i) {
+  const p = roomList()[i], t = dirType(p.id);
+  if (!t || p.y < 0) return "";
+  const d = effDir(p);
+  if (t === "m") return `<button class="big-btn" onclick="roomRotate(${i})">↔️ はんてん する</button>`;
+  return `<button class="big-btn primary" onclick="roomRotate(${i})">🔄 むきを かえる <small>（いま：${DIR_NAME[d]}${p.man ? "・じぶんで きめた" : "・じどう"}）</small></button>
+    ${p.man ? `<button class="big-btn" onclick="roomAutoDir(${i})">🧭 じどうに もどす</button>` : ""}`;
+}
+// むきを かえる モード：メニューを とじて、へやを 見ながら まわす
+function roomAutoDir(i) {
+  const p = roomList()[i];
+  delete p.d; delete p.man;
+  snd("tap"); afterPlace(); closeModal(); roomTap(p.x, p.y);
+}
+function roomRotate(i) {
+  closeModal(); snd("tap");
+  RM = { sel: "", move: -1, rot: i };
+  room();
+  const box = $("roombox"); if (box) box.scrollIntoView({ block: "start", behavior: "smooth" });
+}
+function rotHint() {
+  const p = roomList()[RM.rot], f = furnById(p.id), t = dirType(p.id), d = effDir(p);
+  const btns = t === 4
+    ? `<button class="mini big" onclick="rotStep(-1)">⟲ まわす</button><button class="mini big" onclick="rotStep(1)">⟳ まわす</button>`
+    : t === 2 ? `<button class="mini big" onclick="rotStep(1)">🔄 まえ ⇔ うしろ</button>` : `<button class="mini big" onclick="rotStep(1)">↔️ はんてん</button>`;
+  return `<b>🔄 ${esc(f.name)}の むき</b>：いま <b>${t === "m" ? (d === 3 ? "はんてん" : "そのまま") : DIR_NAME[d]}</b>${p.man ? "（じぶんで きめた）" : "（じどう）"}
+    <div class="rotbtns">${btns}${p.man ? `<button class="mini" onclick="rotAuto()">🧭 じどう</button>` : ""}<button class="mini ok" onclick="RM={sel:'',move:-1};snd('ok');room()">✅ できた</button></div>
+    <small>ほかの かぐを タップすると その かぐの むきを かえられるよ</small>`;
+}
+// まわす（⟳ は 上から 見て 時計まわり：まえ→ひだり→うしろ→みぎ）
+function rotStep(k) {
+  const p = roomList()[RM.rot], t = dirType(p.id), d = effDir(p);
+  p.d = t === 4 ? (k > 0 ? [3, 0, 1, 2][d] : [1, 2, 3, 0][d]) : nextDir(p.id, d);
+  p.man = 1; snd("tap"); save(); comboCheck(); roomRefresh();
+}
+function rotAuto() {
+  const p = roomList()[RM.rot];
+  delete p.d; delete p.man; snd("tap"); save(); roomRefresh();
+}
+// へやの 絵・くみあわせ・ヒントだけ かきかえる（画面が うごかない ように）
+function roomRefresh() {
+  const box = $("roombox");
+  if (!box) return room();
+  box.innerHTML = roomHTML();
+  const c = $("rmcombo"); if (c) c.innerHTML = comboStrip();
+  const h = $("rmhint"); if (h) { h.innerHTML = roomHint(); h.classList.toggle("rot", RM.rot >= 0); }
+  roomWalk(); roomDragInit();
 }
 function roomStore(i) {
   roomList().splice(i, 1);
@@ -368,7 +443,7 @@ function roomSaveTo(i, after) {
     return;
   }
   if (!roomList().length && after !== "clear") { toast("かぐが ない へやは きろく できないよ"); return; }
-  sv[i] = { at: Date.now(), theme: roomTheme(), items: roomList().map((p) => ({ id: p.id, x: p.x, y: p.y })) };
+  sv[i] = { at: Date.now(), theme: roomTheme(), items: roomList().map((p) => Object.assign({ id: p.id, x: p.x, y: p.y }, p.man ? { d: p.d, man: 1 } : {})) };
   save(); snd("ok");
   if (after === "clear") return;
   toast(`きろく ${i + 1} に ほぞん したよ！`);
@@ -384,7 +459,7 @@ function roomLoad(i) {
   d.items.forEach((p) => {
     const f = furnById(p.id);
     if (!f || fOwn(p.id) - fPlaced(p.id) <= 0 || !canPlace(f, p.x, p.y)) { skip++; return; }
-    L.push({ id: p.id, x: p.x, y: p.y });
+    L.push(Object.assign({ id: p.id, x: p.x, y: p.y }, p.man ? { d: p.d, man: 1 } : {}));
   });
   R.themes = R.themes || ["base", "base"];
   R.themes[R.cur] = THEMES[d.theme] && themeOpen(d.theme) ? d.theme : "base";
